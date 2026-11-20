@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAN Video Player</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand" id="brandHome" role="button" tabindex="0" aria-label="Voltar ao início da biblioteca">
+      <svg class="icon icon-brand" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4.5v7l6-3.5-6-3.5z"/>
+      </svg>
+      <div>
+        <h1 class="brand-title">LAN Video Player</h1>
+        <span class="brand-subtitle">Rede Local &bull; Somente-Leitura</span>
+      </div>
+    </div>
+
+    <div class="topbar-controls">
+      <div class="search-box">
+        <svg class="icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="Buscar vídeos na biblioteca..."
+          aria-label="Buscar vídeos pelo nome"
+          autocomplete="off"
+        />
+        <button type="button" id="clearSearchBtn" class="btn-icon hidden" title="Limpar busca" aria-label="Limpar busca">
+          &times;
+        </button>
+      </div>
+
+      <div class="sort-box">
+        <label for="sortSelect" class="sr-only">Ordenar por</label>
+        <select id="sortSelect" aria-label="Critério de ordenação">
+          <option value="name_asc">Nome (A–Z)</option>
+          <option value="name_desc">Nome (Z–A)</option>
+          <option value="date_desc">Mais recentes</option>
+          <option value="date_asc">Mais antigos</option>
+        </select>
+      </div>
+
+      <button type="button" id="openLibraryModalBtn" class="btn btn-primary" title="Selecionar e gerenciar pastas da biblioteca">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
+        </svg>
+        <span>Pastas da Biblioteca</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- Root selector tabs -->
+    <section id="rootsBarSection" class="roots-bar-section" aria-label="Pastas raiz da biblioteca">
+      <div id="rootsTabs" class="roots-tabs"></div>
+    </section>
+
+    <!-- Breadcrumbs navigation -->
+    <nav id="breadcrumbsNav" class="breadcrumbs-nav" aria-label="Trilha de navegação">
+      <ol id="breadcrumbsList" class="breadcrumbs-list"></ol>
+    </nav>
+
+    <!-- Status / Error Alert -->
+    <div id="alertBanner" class="alert-banner hidden" role="alert">
+      <span id="alertMessage"></span>
+      <button type="button" id="alertRetryBtn" class="btn btn-sm">Atualizar</button>
+    </div>
+
+    <!-- Folders Section -->
+    <section id="foldersSection" class="catalog-section hidden" aria-label="Subpastas">
+      <h2 class="section-heading">Pastas <span id="foldersCount" class="badge-count">0</span></h2>
+      <div id="foldersGrid" class="folders-grid"></div>
+    </section>
+
+    <!-- Videos Section -->
+    <section id="videosSection" class="catalog-section hidden" aria-label="Vídeos">
+      <h2 id="videosSectionTitle" class="section-heading">Vídeos <span id="videosCount" class="badge-count">0</span></h2>
+      <div id="videosGrid" class="videos-grid"></div>
+    </section>
+
+    <!-- Empty State -->
+    <section id="emptyState" class="empty-state hidden" aria-live="polite">
+      <div class="empty-card">
+        <svg class="icon-empty" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>
+        </svg>
+        <h3 id="emptyTitle">Nenhum vídeo encontrado</h3>
+        <p id="emptyDescription">Selecione uma pasta com vídeos suportados ou ajuste o filtro de busca.</p>
+        <div class="empty-actions">
+          <button type="button" id="emptyAddFoldersBtn" class="btn btn-primary">Adicionar Pastas à Biblioteca</button>
+          <button type="button" id="emptyResetSearchBtn" class="btn btn-secondary hidden">Limpar Busca</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Video Player Modal -->
+  <div id="playerModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="playerVideoTitle">
+    <div class="player-dialog">
+      <header class="player-header">
+        <div class="player-title-group">
+          <h2 id="playerVideoTitle" class="player-title">Título do Vídeo</h2>
+          <span id="playerVideoPath" class="player-subtitle"></span>
+        </div>
+        <div class="player-header-actions">
+          <button type="button" id="prevVideoBtn" class="btn btn-secondary btn-sm" title="Vídeo anterior da pasta">
+            &#9664; Anterior
+          </button>
+          <button type="button" id="nextVideoBtn" class="btn btn-secondary btn-sm" title="Próximo vídeo da pasta">
+            Próximo &#9654;
+          </button>
+          <button type="button" id="closePlayerBtn" class="btn btn-danger btn-sm" aria-label="Fechar player">
+            &#10005; Fechar
+          </button>
+        </div>
+      </header>
+
+      <!-- Resume Toast Banner -->
+      <div id="resumeBanner" class="resume-banner hidden">
+        <span id="resumeBannerText">Retomando reprodução de onde você parou.</span>
+        <button type="button" id="restartFromBeginningBtn" class="btn btn-sm">Reiniciar do início</button>
+      </div>
+
+      <!-- Format Error Banner (FR-017) -->
+      <div id="playerErrorBanner" class="player-error-banner hidden" role="alert">
+        <strong>Formato ou codec não suportado por este navegador.</strong>
+        <p>O arquivo de vídeo não pôde ser decodificado diretamente pelo navegador atual. Tente abrir em outro navegador compatível na LAN ou converter para MP4 (H.264/AAC) ou WebM.</p>
+        <button type="button" id="errorBackToLibBtn" class="btn btn-secondary btn-sm">Voltar à Biblioteca</button>
+      </div>
+
+      <div class="player-stage" id="playerStage">
+        <video id="videoElement" preload="metadata" playsinline></video>
+
+        <!-- Autoplay Next Countdown Overlay (FR-013) -->
+        <div id="autoplayOverlay" class="autoplay-overlay hidden">
+          <div class="autoplay-card">
+            <p class="autoplay-label">Próximo vídeo em <strong id="autoplayCountdown">5</strong>s</p>
+            <h3 id="autoplayNextTitle" class="autoplay-title"></h3>
+            <div class="autoplay-actions">
+              <button type="button" id="autoplayPlayNowBtn" class="btn btn-primary">Reproduzir Agora</button>
+              <button type="button" id="autoplayCancelBtn" class="btn btn-secondary">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Timeline & Seek Bar (Supports both direct Range and FFmpeg transcoded streams) -->
+      <div class="player-seekbar">
+        <button type="button" id="playPauseBtn" class="btn btn-primary btn-sm" title="Reproduzir / Pausar (Espaço)">
+          &#9654;
+        </button>
+        <button type="button" id="seekBackBtn" class="btn btn-secondary btn-sm" title="Retroceder 10 segundos (Seta Esquerda)">
+          &#8630; -10s
+        </button>
+        <button type="button" id="seekFwdBtn" class="btn btn-secondary btn-sm" title="Avançar 10 segundos (Seta Direita)">
+          +10s &#8631;
+        </button>
+        <span id="currentTimeLabel" class="seek-time-label">00:00</span>
+        <input
+          type="range"
+          id="seekSlider"
+          class="seek-slider"
+          min="0"
+          max="100"
+          step="1"
+          value="0"
+          aria-label="Barra de progresso do vídeo"
+        />
+        <span id="totalDurationLabel" class="seek-time-label">00:00</span>
+        <div class="volume-control">
+          <button type="button" id="muteBtn" class="btn btn-secondary btn-sm" title="Silenciar / Ativar som (M)">
+            &#128266;
+          </button>
+          <input
+            type="range"
+            id="volumeSlider"
+            class="volume-slider"
+            min="0"
+            max="1"
+            step="0.05"
+            value="1"
+            aria-label="Volume"
+          />
+        </div>
+        <button type="button" id="fullscreenBtn" class="btn btn-secondary btn-sm" title="Tela cheia (F)">
+          &#x26F6; Tela Cheia
+        </button>
+      </div>
+
+      <!-- Extended Player Controls Bar (Speed, Subtitles, Audio Track, Autoplay Next) -->
+      <footer class="player-toolbar">
+        <div class="toolbar-group">
+          <label for="speedSelect">Velocidade:</label>
+          <select id="speedSelect" aria-label="Velocidade de reprodução">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x (Normal)</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <label for="subtitleSelect">Legendas:</label>
+          <select id="subtitleSelect" aria-label="Selecionar legenda local">
+            <option value="-1">Desativadas</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <label for="audioTrackSelect">Áudio:</label>
+          <select id="audioTrackSelect" aria-label="Selecionar faixa de áudio" disabled>
+            <option value="0">Padrão (1 faixa)</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group toolbar-toggle">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoplayNextCheckbox" checked />
+            <span>Próximo vídeo automático</span>
+          </label>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Library Folder Picker & Management Modal (FR-018, FR-019) -->
+  <div id="libraryModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="libraryModalTitle">
+    <div class="library-dialog">
+      <header class="modal-header">
+        <div>
+          <h2 id="libraryModalTitle">Gerenciar Pastas da Biblioteca</h2>
+          <p class="modal-subtitle">Acesso estritamente somente-leitura &bull; As pastas adicionadas ficam salvas automaticamente</p>
+        </div>
+        <button type="button" id="closeLibraryModalBtn" class="btn btn-secondary btn-sm" aria-label="Fechar janela">
+          &#10005; Fechar
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <!-- Active Roots List -->
+        <section class="library-section">
+          <h3 class="subsection-title">Pastas Ativas na Biblioteca</h3>
+          <ul id="activeRootsList" class="active-roots-list"></ul>
+        </section>
+
+        <!-- Visual Folder Picker inside --browse-base -->
+        <section id="pickerSection" class="library-section">
+          <div class="picker-header">
+            <h3 class="subsection-title">Selecionar Uma ou Mais Pastas para Adicionar</h3>
+            <button type="button" id="selectCurrentDirBtn" class="btn btn-secondary btn-sm" title="Marcar a pasta aberta atual">
+              + Adicionar pasta aberta atual
+            </button>
+          </div>
+
+          <nav class="picker-breadcrumbs" aria-label="Navegação do seletor de pastas">
+            <ol id="pickerBreadcrumbsList" class="breadcrumbs-list"></ol>
+          </nav>
+
+          <div id="pickerStatusMsg" class="picker-status hidden"></div>
+
+          <ul id="pickerDirsList" class="picker-dirs-list"></ul>
+
+          <div class="picker-footer">
+            <span id="pickerSelectedCount" class="picker-count">0 pasta(s) marcada(s)</span>
+            <button type="button" id="addSelectedDirsBtn" class="btn btn-primary" disabled>
+              Adicionar Pastas Selecionadas
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <span><strong>lan-video-player</strong> <span id="appVersionText">v0.1.0</span> &mdash; Operação 100% Offline na LAN</span>
+    <span>Licenciado sob <a href="/LICENSE" target="_blank" rel="noopener">GNU AGPL v3.0 (Código-Fonte e Licença)</a></span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

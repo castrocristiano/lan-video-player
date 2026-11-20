@@ -10,20 +10,22 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Navegar em Uma ou Mais Pastas de Mídia pela Rede Local (Priority: P1)
+### User Story 1 - Configurar, Selecionar e Navegar em Uma ou Mais Pastas de Mídia pela Rede Local (Priority: P1)
 
-Um operador inicia o serviço apontando para uma ou mais pastas de vídeos no computador anfitrião e definindo a porta desejada na rede local. Qualquer pessoa conectada à mesma rede local abre o endereço do serviço no navegador web (em computador, celular, tablet ou TV compatível) e navega pelas pastas e subpastas da biblioteca para visualizar os vídeos disponíveis, sem instalar aplicativos extras e sem acesso à internet.
+Um operador inicia o serviço apontando para pastas iniciais ou um diretório-base seguro no computador anfitrião e definindo a porta desejada na rede local. Qualquer pessoa conectada à mesma rede local abre o endereço do serviço no navegador web (em computador, celular, tablet ou TV compatível), pode abrir o seletor visual de pastas para escolher uma ou mais pastas disponíveis dentro do diretório-base seguro e adicioná-las à biblioteca (com salvamento automático da lista de pastas para próximos reinícios), e navega pelas pastas e subpastas da biblioteca para visualizar os vídeos disponíveis, sem instalar aplicativos extras e sem acesso à internet.
 
-**Why this priority**: Sem configurar a biblioteca e navegar pelos vídeos pela rede local, o produto não entrega valor básico. É a porta de entrada obrigatória de toda a experiência.
+**Why this priority**: Sem configurar/selecionar as pastas da biblioteca e navegar pelos vídeos pela rede local, o produto não entrega valor básico. É a porta de entrada obrigatória de toda a experiência.
 
-**Independent Test**: Pode ser testada isoladamente iniciando o serviço com duas pastas de mídia contendo subpastas e vídeos de teste, acessando o endereço em um navegador na rede local e verificando que as raízes configuradas, subpastas, trilha de navegação (breadcrumbs) e arquivos de vídeo aparecem corretamente, ignorando arquivos que não são de vídeo.
+**Independent Test**: Pode ser testada isoladamente iniciando o serviço com um diretório-base contendo múltiplas pastas de mídia, acessando o endereço em um navegador na rede local, abrindo a opção "Adicionar Pastas", selecionando duas pastas para compor a biblioteca, verificando que elas permanecem salvas após reiniciar o serviço e que suas subpastas, trilha de navegação (breadcrumbs) e arquivos de vídeo aparecem corretamente, ignorando arquivos que não são de vídeo.
 
 **Acceptance Scenarios**:
 
 1. **Given** o serviço está em execução apontando para uma única pasta contendo subpastas, vídeos e documentos diversos, **When** o usuário abre o endereço do serviço em um navegador na rede local, **Then** a interface exibe diretamente o conteúdo dessa pasta raiz mostrando apenas as subpastas e os arquivos de vídeo reconhecidos, com nome, tamanho e data de modificação visíveis.
 2. **Given** o serviço está em execução apontando para duas ou mais pastas raiz de mídia (ex.: "Filmes" e "Séries"), **When** o usuário abre a tela inicial, **Then** a interface apresenta cada pasta configurada como ponto de entrada distinto, permitindo entrar em qualquer uma e navegar livremente por suas subpastas com trilha de navegação (breadcrumbs).
-3. **Given** o serviço está rodando em uma rede local totalmente sem acesso à internet, **When** o usuário carrega a página no navegador, **Then** toda a interface visual, ícones e estilos carregam completamente sem erros nem dependências externas.
-4. **Given** um cliente tenta solicitar manualmente um caminho fora das pastas da biblioteca configuradas (incluindo tentativas de subir níveis de diretório ou seguir atalhos externos), **When** a requisição é processada, **Then** o acesso é recusado e nenhum arquivo ou diretório fora das raízes configuradas é exposto.
+3. **Given** o usuário clica na opção "Gerenciar Biblioteca / Adicionar Pastas" na interface web, **When** o seletor visual de diretórios é aberto, **Then** o usuário pode navegar pelas pastas dentro do diretório-base seguro do servidor, selecionar uma ou mais pastas simultaneamente e confirmá-las para que passem a integrar imediatamente a biblioteca e fiquem salvas para futuros reinícios do serviço.
+4. **Given** uma pasta foi adicionada à biblioteca pela interface web, **When** o usuário opta por remover/desvincular essa pasta da biblioteca na tela de gerenciamento, **Then** a pasta deixa de ser listada na biblioteca ativa e na configuração salva, sem jamais excluir ou modificar qualquer arquivo ou diretório no disco do usuário.
+5. **Given** o serviço está rodando em uma rede local totalmente sem acesso à internet, **When** o usuário carrega a página no navegador, **Then** toda a interface visual, ícones e estilos carregam completamente sem erros nem dependências externas.
+6. **Given** um cliente tenta solicitar ou adicionar manualmente um caminho fora das pastas da biblioteca ou fora do diretório-base seguro autorizado (incluindo tentativas de subir níveis de diretório ou seguir atalhos externos), **When** a requisição é processada, **Then** o acesso é recusado e nenhum arquivo ou diretório fora das raízes/base autorizadas é exposto.
 
 ---
 
@@ -113,10 +115,14 @@ Ao assistir conteúdos longos, filmes ou séries em sequência, o usuário pode 
 - **FR-015**: O sistema DEVE oferecer seleção de faixa de áudio nos controles do player quando o vídeo e o navegador disponibilizarem múltiplas faixas de áudio, mantendo reprodução estável com a faixa padrão nos demais casos.
 - **FR-016**: A interface web DEVE disponibilizar aviso de licença (GNU AGPL v3.0) e referência ao código-fonte correspondente de forma discreta e acessível aos usuários da rede.
 - **FR-017**: O sistema DEVE exibir mensagens de erro amigáveis e recuperáveis quando um arquivo não for encontrado, uma pasta estiver vazia ou o formato do vídeo não for suportado pelo navegador do usuário.
+- **FR-018**: A interface web DEVE oferecer um seletor visual de pastas (restrito a um diretório-base seguro configurado no servidor, como `$HOME` ou `/media`) que permita ao usuário selecionar e adicionar uma ou mais pastas à biblioteca ativa (bem como desvincular pastas adicionadas sem excluir arquivos do disco).
+- **FR-019**: O sistema DEVE persistir automaticamente a lista de pastas adicionadas pela interface web em um arquivo de configuração local (armazenado fora das pastas de mídia do usuário) e recarregá-la automaticamente ao reiniciar o servidor ou container.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Raiz de Biblioteca (Media Root)**: Diretório somente-leitura configurado pelo operador na inicialização, identificado por um rótulo amigável e identificador único, isolado do restante do sistema de arquivos.
+- **Diretório-Base Seguro (Browse Base Directory)**: Diretório raiz autorizado pelo operador (ex.: `$HOME` ou `/media`) dentro do qual o seletor visual da interface web pode navegar para permitir a escolha de uma ou mais pastas de mídia, impedindo exposição do restante do sistema operacional.
+- **Configuração Persistente da Biblioteca (Library Configuration)**: Registro local do servidor (salvo fora das pastas de mídia) que armazena a lista de pastas adicionadas pelo usuário via interface web para preservação entre reinícios.
+- **Raiz de Biblioteca (Media Root)**: Diretório somente-leitura configurado na inicialização ou adicionado pelo seletor visual na interface web, identificado por um rótulo amigável e identificador único, isolado do restante do sistema de arquivos.
 - **Pasta (Folder)**: Diretório relativo a uma raiz de biblioteca, identificado por nome e caminho relativo seguro, agrupando subpastas e vídeos.
 - **Item de Vídeo (Video Item)**: Arquivo de vídeo acessível em uma raiz, representado por identificador/caminho relativo seguro, título de exibição, tamanho, data de modificação, prévia visual (miniatura), tipo de mídia e legendas associadas.
 - **Legenda Local (Local Subtitle)**: Arquivo de legenda localizado na mesma pasta de um vídeo com o mesmo nome base, podendo carregar rótulo/idioma derivado do sufixo do nome.

@@ -1,0 +1,32 @@
+# Binaries and build artifacts
+/bin/
+/dist/
+/lan-video-player
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary and coverage
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Temporary files and local caches
+*.tmp
+*.swp
+.tmp/
+tmp/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local environment overrides
+.env
+.env.*
+!.env.example
