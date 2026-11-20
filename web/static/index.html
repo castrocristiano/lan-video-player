@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="topbar-brand" id="brandHome" role="button" tabindex="0" aria-label="Voltar ao início da biblioteca">
+    <button type="button" class="topbar-brand" id="brandHome" aria-label="Voltar ao início da biblioteca">
       <svg class="icon icon-brand" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4.5v7l6-3.5-6-3.5z"/>
       </svg>
@@ -16,7 +16,7 @@
         <h1 class="brand-title">LAN Video Player</h1>
         <span class="brand-subtitle">Rede Local &bull; Somente-Leitura</span>
       </div>
-    </div>
+    </button>
 
     <div class="topbar-controls">
       <div class="search-box">
@@ -100,8 +100,8 @@
   </main>
 
   <!-- Video Player Modal -->
-  <div id="playerModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="playerVideoTitle">
-    <div class="player-dialog">
+  <div id="playerModal" class="modal-overlay hidden">
+    <dialog class="player-dialog" open aria-labelledby="playerVideoTitle">
       <header class="player-header">
         <div class="player-title-group">
           <h2 id="playerVideoTitle" class="player-title">Título do Vídeo</h2>
@@ -114,7 +114,7 @@
           <button type="button" id="nextVideoBtn" class="btn btn-secondary btn-sm" title="Próximo vídeo da pasta">
             Próximo &#9654;
           </button>
-          <button type="button" id="closePlayerBtn" class="btn btn-danger btn-sm" aria-label="Fechar player">
+          <button type="button" id="closePlayerBtn" class="btn btn-danger btn-sm" title="Fechar player">
             &#10005; Fechar
           </button>
         </div>
@@ -140,7 +140,7 @@
         <div id="autoplayOverlay" class="autoplay-overlay hidden">
           <div class="autoplay-card">
             <p class="autoplay-label">Próximo vídeo em <strong id="autoplayCountdown">5</strong>s</p>
-            <h3 id="autoplayNextTitle" class="autoplay-title"></h3>
+            <h3 id="autoplayNextTitle" class="autoplay-title">Próximo vídeo</h3>
             <div class="autoplay-actions">
               <button type="button" id="autoplayPlayNowBtn" class="btn btn-primary">Reproduzir Agora</button>
               <button type="button" id="autoplayCancelBtn" class="btn btn-secondary">Cancelar</button>
@@ -229,18 +229,18 @@
           </div>
         </footer>
       </div>
-    </div>
+    </dialog>
   </div>
 
   <!-- Library Folder Picker & Management Modal (FR-018, FR-019) -->
-  <div id="libraryModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="libraryModalTitle">
-    <div class="library-dialog">
+  <div id="libraryModal" class="modal-overlay hidden">
+    <dialog class="library-dialog" open aria-labelledby="libraryModalTitle">
       <header class="modal-header">
         <div>
           <h2 id="libraryModalTitle">Gerenciar Pastas da Biblioteca</h2>
           <p class="modal-subtitle">Acesso estritamente somente-leitura &bull; As pastas adicionadas ficam salvas automaticamente</p>
         </div>
-        <button type="button" id="closeLibraryModalBtn" class="btn btn-secondary btn-sm" aria-label="Fechar janela">
+        <button type="button" id="closeLibraryModalBtn" class="btn btn-secondary btn-sm" title="Fechar janela">
           &#10005; Fechar
         </button>
       </header>
@@ -277,7 +277,7 @@
           </div>
         </section>
       </div>
-    </div>
+    </dialog>
   </div>
 
   <footer class="app-footer">
