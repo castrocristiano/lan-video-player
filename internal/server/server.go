@@ -14,7 +14,11 @@ import (
 	"github.com/cristiano/lan-video-player/web"
 )
 
-const offlineCSP = "default-src 'self'; media-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'"
+const (
+	offlineCSP          = "default-src 'self'; media-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'"
+	errMethodNotAllowed = "Método HTTP não suportado."
+	headerContentType   = "Content-Type"
+)
 
 // Server implements the HTTP handler and API endpoints for lan-video-player.
 type Server struct {
@@ -133,14 +137,14 @@ func (s *Server) handleRoots(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, s.buildRootsPayload(updated))
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 	}
 }
 
 // handleRootByID handles DELETE /api/v1/roots/{rootId}.
 func (s *Server) handleRootByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	rootID := strings.TrimPrefix(r.URL.Path, "/api/v1/roots/")
@@ -163,7 +167,7 @@ func (s *Server) handleRootByID(w http.ResponseWriter, r *http.Request) {
 // handleBrowseBaseDirs handles GET /api/v1/fs/dirs?path=... for the visual folder picker (FR-018).
 func (s *Server) handleBrowseBaseDirs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	relPath := r.URL.Query().Get("path")
@@ -178,7 +182,7 @@ func (s *Server) handleBrowseBaseDirs(w http.ResponseWriter, r *http.Request) {
 // handleBrowse handles GET /api/v1/browse?root=...&path=...&sort=...
 func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	q := r.URL.Query()
@@ -197,7 +201,7 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 // handleSearch handles GET /api/v1/search?q=...&root=...&sort=...
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	q := r.URL.Query()
@@ -216,7 +220,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 // handleProbe handles GET /api/v1/probe/{rootId}/{path...} returning video duration and transcode info.
 func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	rootID, relPath, ok := extractRootAndRelPath(r, "/api/v1/probe/")
@@ -235,7 +239,7 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 // handleSubtitles handles GET /api/v1/subtitles/{rootId}/{path...} serving WebVTT (FR-014).
 func (s *Server) handleSubtitles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	rootID, relPath, ok := extractRootAndRelPath(r, "/api/v1/subtitles/")
@@ -256,7 +260,7 @@ func (s *Server) handleSubtitles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/vtt; charset=utf-8")
+	w.Header().Set(headerContentType, "text/vtt; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
@@ -267,7 +271,7 @@ func (s *Server) handleSubtitles(w http.ResponseWriter, r *http.Request) {
 // handleThumbnails handles GET /api/v1/thumbnails/{rootId}/{path...} (FR-005, FR-008).
 func (s *Server) handleThumbnails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 	rootID, relPath, ok := extractRootAndRelPath(r, "/api/v1/thumbnails/")
@@ -286,7 +290,7 @@ func (s *Server) handleThumbnails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", contentType)
+	w.Header().Set(headerContentType, contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
@@ -296,7 +300,7 @@ func (s *Server) handleThumbnails(w http.ResponseWriter, r *http.Request) {
 
 // handleLicense serves the full GNU AGPL v3.0 license text (FR-016).
 func (s *Server) handleLicense(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set(headerContentType, "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(web.LicenseBytes())
 }
@@ -384,7 +388,7 @@ func writeError(w http.ResponseWriter, status int, code string, message string) 
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set(headerContentType, "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)

@@ -91,14 +91,15 @@ func run(args []string, getenv func(string) string) int {
 }
 
 func printStartupBanner(listenAddr string, cat *catalog.Catalog, cfg *config.Config) {
+	const bannerDivider = "============================================================"
 	_, port, err := net.SplitHostPort(listenAddr)
 	if err != nil {
 		port = "8080"
 	}
 
-	fmt.Println("============================================================")
+	fmt.Println(bannerDivider)
 	fmt.Printf("  lan-video-player v%s (GNU AGPL v3.0) — 100%% Offline LAN\n", config.AppVersion)
-	fmt.Println("============================================================")
+	fmt.Println(bannerDivider)
 	fmt.Printf("  Local:      http://localhost:%s\n", port)
 	for _, ip := range detectLANIPv4s() {
 		fmt.Printf("  Rede LAN:   http://%s:%s\n", ip, port)
@@ -118,7 +119,7 @@ func printStartupBanner(listenAddr string, cat *catalog.Catalog, cfg *config.Con
 			fmt.Printf("    - [%s] %s (%s)\n", r.Source, r.Label, r.ID)
 		}
 	}
-	fmt.Println("============================================================")
+	fmt.Println(bannerDivider)
 }
 
 func detectLANIPv4s() []string {
