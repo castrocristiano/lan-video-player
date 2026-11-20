@@ -7,7 +7,11 @@ services:
     container_name: lan-video-player
     restart: unless-stopped
     read_only: true
+    # Mapeia o usuário do host (ex.: cristiano) para o usuário 10001 do container no Podman rootless,
+    # permitindo leitura de /home/cristiano e /mnt em modo somente-leitura sem alterar permissões nem rótulos SELinux do host
+    userns_mode: "keep-id:uid=10001,gid=10001"
     security_opt:
+      - label=disable
       - no-new-privileges:true
     ports:
       - "${LVP_PORT:-8090}:8080"
@@ -16,10 +20,11 @@ services:
       LVP_BROWSE_BASE: "/media"
       LVP_CONFIG_FILE: "/config/library.json"
       LVP_CACHE_DIR: "/tmp/lan-video-player-thumbs"
-      LVP_MEDIA_DIRS: "${LVP_MEDIA_DIRS:-/media}"
+      LVP_MEDIA_DIRS: "${LVP_MEDIA_DIRS:-}"
     volumes:
-      # Diretório-base de mídia do host montado estritamente em modo somente-leitura (:ro,Z compatível com Podman rootless + SELinux)
-      - "${LVP_HOST_MEDIA:-./media}:/media:ro,Z"
+      # Pastas do host montadas estritamente em modo somente-leitura (:ro) dentro de /media
+      - "${LVP_HOST_HOME:-/home/cristiano}:/media/cristiano:ro"
+      - "${LVP_HOST_MNT:-/mnt}:/media/mnt:ro"
       # Volume dedicado (fora das pastas de mídia) para persistir as pastas selecionadas na Web UI (library.json)
       - lvp_config:/config:Z
     tmpfs:
