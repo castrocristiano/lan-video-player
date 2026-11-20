@@ -1,0 +1,15 @@
+.git
+.gitignore
+.specify
+.agents
+specs
+bin
+dist
+*.test
+*.out
+*.log
+.env
+.env.*
+.vscode
+.idea
+README.md

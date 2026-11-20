@@ -1,0 +1,29 @@
+services:
+  lan-video-player:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: localhost/lan-video-player:latest
+    container_name: lan-video-player
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${LVP_PORT:-8080}:8080"
+    environment:
+      LVP_ADDR: "0.0.0.0:8080"
+      LVP_BROWSE_BASE: "/media"
+      LVP_CONFIG_FILE: "/config/library.json"
+      LVP_CACHE_DIR: "/tmp/lan-video-player-thumbs"
+      LVP_MEDIA_DIRS: "${LVP_MEDIA_DIRS:-/media}"
+    volumes:
+      # Diretório-base de mídia do host montado estritamente em modo somente-leitura (:ro,Z compatível com Podman rootless + SELinux)
+      - "${LVP_HOST_MEDIA:-./media}:/media:ro,Z"
+      # Volume dedicado (fora das pastas de mídia) para persistir as pastas selecionadas na Web UI (library.json)
+      - lvp_config:/config:Z
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+
+volumes:
+  lvp_config:
