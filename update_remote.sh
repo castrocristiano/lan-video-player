@@ -32,6 +32,7 @@ echo "=========================================================="
 if git rev-parse --git-dir >/dev/null 2>&1; then
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
     echo "🔄 Sincronizando branch local '$CURRENT_BRANCH' para $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR..."
+    ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$REMOTE_HOST" "git -C '$REMOTE_DIR' config receive.denyCurrentBranch updateInstead" 2>/dev/null || true
     git -c core.sshCommand="ssh ${SSH_OPTS[*]}" push -f "ssh://$REMOTE_USER@$REMOTE_HOST$REMOTE_DIR" "$CURRENT_BRANCH:refs/heads/$CURRENT_BRANCH" 2>/dev/null || true
 fi
 
