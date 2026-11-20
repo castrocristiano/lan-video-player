@@ -132,16 +132,18 @@ jobs:
             exit 0
           fi
 
-          EXISTING_PR=$(gh pr list --base "$TARGET_BASE" --head "$BRANCH" --state open --json number --jq '.[0].number')
+          EXISTING_PR=$(gh pr list --base "$TARGET_BASE" --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$EXISTING_PR" ]; then
             echo "Pull Request #$EXISTING_PR já existe de $BRANCH para $TARGET_BASE."
           else
             echo "Criando Pull Request de $BRANCH para $TARGET_BASE..."
-            gh pr create \
+            if ! gh pr create \
               --base "$TARGET_BASE" \
               --head "$BRANCH" \
               --title "feat: $BRANCH" \
-              --body $'### Pull Request Automatizado\n\nEste PR foi aberto automaticamente pela esteira de CI após a conclusão bem-sucedida do build, `go vet`, testes com `-race` e SonarQube no branch `'"$BRANCH"$'`.\n\n#### Verificações Realizadas\n- [x] Compilação de binário único estático (`CGO_ENABLED=0`)\n- [x] Análise estática com `go vet ./...`\n- [x] Execução de testes unitários e de integração com `go test -race ./...`\n- [x] Quality Gate do SonarQube aprovado'
+              --body $'### Pull Request Automatizado\n\nEste PR foi aberto automaticamente pela esteira de CI após a conclusão bem-sucedida do build, `go vet`, testes com `-race` e SonarQube no branch `'"$BRANCH"$'`.\n\n#### Verificações Realizadas\n- [x] Compilação de binário único estático (`CGO_ENABLED=0`)\n- [x] Análise estática com `go vet ./...`\n- [x] Execução de testes unitários e de integração com `go test -race ./...`\n- [x] Quality Gate do SonarQube aprovado'; then
+              echo "::warning::Não foi possível criar o PR automaticamente via GITHUB_TOKEN. Ative 'Allow GitHub Actions to create and approve pull requests' em https://github.com/${GITHUB_REPOSITORY}/settings/actions ou abra manualmente em https://github.com/${GITHUB_REPOSITORY}/compare/${TARGET_BASE}...${BRANCH}?expand=1"
+            fi
           fi
 
   # Abre PR de develop ou hotfix* → main
@@ -166,7 +168,7 @@ jobs:
             echo "Nenhum commit novo entre $BRANCH e main. PR não necessário."
             exit 0
           fi
-          EXISTING_PR=$(gh pr list --base main --head "$BRANCH" --state open --json number --jq '.[0].number')
+          EXISTING_PR=$(gh pr list --base main --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$EXISTING_PR" ]; then
             echo "Pull Request #$EXISTING_PR já existe de $BRANCH para main."
           else
@@ -177,11 +179,13 @@ jobs:
               PR_TITLE="chore: merge develop into main"
               PR_BODY=$'### Pull Request Automatizado\n\nEste PR foi aberto automaticamente pela esteira de CI após a conclusão bem-sucedida do build, testes e SonarQube no branch `develop`.'
             fi
-            gh pr create \
+            if ! gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "$PR_TITLE" \
-              --body "$PR_BODY"
+              --body "$PR_BODY"; then
+              echo "::warning::Não foi possível criar o PR automaticamente via GITHUB_TOKEN. Ative 'Allow GitHub Actions to create and approve pull requests' em https://github.com/${GITHUB_REPOSITORY}/settings/actions ou abra manualmente em https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
+            fi
           fi
 
   # Cria Release no GitHub quando código for mergeado na branch main
