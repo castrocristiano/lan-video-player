@@ -24,6 +24,7 @@
     transcodeBaseOffset: 0,
     totalDuration: 0,
     isDraggingSeek: false,
+    fsHideTimer: null,
     autoplayTimer: null,
     autoplayRemaining: 5,
     lastProgressSaveAt: 0,
@@ -64,6 +65,8 @@
 
     // Player Modal
     playerModal: document.getElementById("playerModal"),
+    playerDialog: document.querySelector("#playerModal .player-dialog"),
+    playerBottomControls: document.getElementById("playerBottomControls"),
     playerVideoTitle: document.getElementById("playerVideoTitle"),
     playerVideoPath: document.getElementById("playerVideoPath"),
     prevVideoBtn: document.getElementById("prevVideoBtn"),
@@ -1194,11 +1197,57 @@
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       } else {
-        dom.playerModal.querySelector(".player-dialog").requestFullscreen().catch(() => {
+        dom.playerDialog.requestFullscreen().catch(() => {
           dom.videoElement.requestFullscreen().catch(() => {});
         });
       }
     });
+
+    function showFullscreenControlsTemporarily() {
+      if (!document.fullscreenElement) {
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
+        return;
+      }
+      dom.playerDialog.classList.add("fs-controls-visible");
+      dom.playerDialog.classList.remove("fs-idle");
+      clearTimeout(state.fsHideTimer);
+
+      const isHoveringControls =
+        dom.playerBottomControls.matches(":hover") ||
+        dom.playerDialog.querySelector(".player-header").matches(":hover");
+
+      if (!dom.videoElement.paused && !isHoveringControls) {
+        state.fsHideTimer = setTimeout(() => {
+          if (document.fullscreenElement && !dom.videoElement.paused) {
+            dom.playerDialog.classList.remove("fs-controls-visible");
+            dom.playerDialog.classList.add("fs-idle");
+          }
+        }, 2500);
+      }
+    }
+
+    dom.playerDialog.addEventListener("mousemove", showFullscreenControlsTemporarily);
+    dom.playerDialog.addEventListener("touchstart", showFullscreenControlsTemporarily, { passive: true });
+    dom.playerDialog.addEventListener("mouseleave", () => {
+      if (document.fullscreenElement && !dom.videoElement.paused) {
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible");
+        dom.playerDialog.classList.add("fs-idle");
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      if (document.fullscreenElement) {
+        dom.fullscreenBtn.innerHTML = "&#x26F6; Sair Tela Cheia";
+        showFullscreenControlsTemporarily();
+      } else {
+        dom.fullscreenBtn.innerHTML = "&#x26F6; Tela Cheia";
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
+      }
+    });
+    dom.videoElement.addEventListener("pause", showFullscreenControlsTemporarily);
+    dom.videoElement.addEventListener("play", showFullscreenControlsTemporarily);
 
     dom.muteBtn.addEventListener("click", () => {
       dom.videoElement.muted = !dom.videoElement.muted;

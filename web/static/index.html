@@ -149,84 +149,86 @@
         </div>
       </div>
 
-      <!-- Interactive Timeline & Seek Bar (Supports both direct Range and FFmpeg transcoded streams) -->
-      <div class="player-seekbar">
-        <button type="button" id="playPauseBtn" class="btn btn-primary btn-sm" title="Reproduzir / Pausar (Espaço)">
-          &#9654;
-        </button>
-        <button type="button" id="seekBackBtn" class="btn btn-secondary btn-sm" title="Retroceder 10 segundos (Seta Esquerda)">
-          &#8630; -10s
-        </button>
-        <button type="button" id="seekFwdBtn" class="btn btn-secondary btn-sm" title="Avançar 10 segundos (Seta Direita)">
-          +10s &#8631;
-        </button>
-        <span id="currentTimeLabel" class="seek-time-label">00:00</span>
-        <input
-          type="range"
-          id="seekSlider"
-          class="seek-slider"
-          min="0"
-          max="100"
-          step="1"
-          value="0"
-          aria-label="Barra de progresso do vídeo"
-        />
-        <span id="totalDurationLabel" class="seek-time-label">00:00</span>
-        <div class="volume-control">
-          <button type="button" id="muteBtn" class="btn btn-secondary btn-sm" title="Silenciar / Ativar som (M)">
-            &#128266;
+      <div class="player-bottom-controls" id="playerBottomControls">
+        <!-- Interactive Timeline & Seek Bar (Supports both direct Range and FFmpeg transcoded streams) -->
+        <div class="player-seekbar">
+          <button type="button" id="playPauseBtn" class="btn btn-primary btn-sm" title="Reproduzir / Pausar (Espaço)">
+            &#9654;
           </button>
+          <button type="button" id="seekBackBtn" class="btn btn-secondary btn-sm" title="Retroceder 10 segundos (Seta Esquerda)">
+            &#8630; -10s
+          </button>
+          <button type="button" id="seekFwdBtn" class="btn btn-secondary btn-sm" title="Avançar 10 segundos (Seta Direita)">
+            +10s &#8631;
+          </button>
+          <span id="currentTimeLabel" class="seek-time-label">00:00</span>
           <input
             type="range"
-            id="volumeSlider"
-            class="volume-slider"
+            id="seekSlider"
+            class="seek-slider"
             min="0"
-            max="1"
-            step="0.05"
-            value="1"
-            aria-label="Volume"
+            max="100"
+            step="1"
+            value="0"
+            aria-label="Barra de progresso do vídeo"
           />
+          <span id="totalDurationLabel" class="seek-time-label">00:00</span>
+          <div class="volume-control">
+            <button type="button" id="muteBtn" class="btn btn-secondary btn-sm" title="Silenciar / Ativar som (M)">
+              &#128266;
+            </button>
+            <input
+              type="range"
+              id="volumeSlider"
+              class="volume-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              value="1"
+              aria-label="Volume"
+            />
+          </div>
+          <button type="button" id="fullscreenBtn" class="btn btn-secondary btn-sm" title="Tela cheia (F)">
+            &#x26F6; Tela Cheia
+          </button>
         </div>
-        <button type="button" id="fullscreenBtn" class="btn btn-secondary btn-sm" title="Tela cheia (F)">
-          &#x26F6; Tela Cheia
-        </button>
+
+        <!-- Extended Player Controls Bar (Speed, Subtitles, Audio Track, Autoplay Next) -->
+        <footer class="player-toolbar">
+          <div class="toolbar-group">
+            <label for="speedSelect">Velocidade:</label>
+            <select id="speedSelect" aria-label="Velocidade de reprodução">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x (Normal)</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group">
+            <label for="subtitleSelect">Legendas:</label>
+            <select id="subtitleSelect" aria-label="Selecionar legenda local">
+              <option value="-1">Desativadas</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group">
+            <label for="audioTrackSelect">Áudio:</label>
+            <select id="audioTrackSelect" aria-label="Selecionar faixa de áudio" disabled>
+              <option value="0">Padrão (1 faixa)</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group toolbar-toggle">
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoplayNextCheckbox" checked />
+              <span>Próximo vídeo automático</span>
+            </label>
+          </div>
+        </footer>
       </div>
-
-      <!-- Extended Player Controls Bar (Speed, Subtitles, Audio Track, Autoplay Next) -->
-      <footer class="player-toolbar">
-        <div class="toolbar-group">
-          <label for="speedSelect">Velocidade:</label>
-          <select id="speedSelect" aria-label="Velocidade de reprodução">
-            <option value="0.5">0.5x</option>
-            <option value="0.75">0.75x</option>
-            <option value="1" selected>1.0x (Normal)</option>
-            <option value="1.25">1.25x</option>
-            <option value="1.5">1.5x</option>
-            <option value="2">2.0x</option>
-          </select>
-        </div>
-
-        <div class="toolbar-group">
-          <label for="subtitleSelect">Legendas:</label>
-          <select id="subtitleSelect" aria-label="Selecionar legenda local">
-            <option value="-1">Desativadas</option>
-          </select>
-        </div>
-
-        <div class="toolbar-group">
-          <label for="audioTrackSelect">Áudio:</label>
-          <select id="audioTrackSelect" aria-label="Selecionar faixa de áudio" disabled>
-            <option value="0">Padrão (1 faixa)</option>
-          </select>
-        </div>
-
-        <div class="toolbar-group toolbar-toggle">
-          <label class="checkbox-label">
-            <input type="checkbox" id="autoplayNextCheckbox" checked />
-            <span>Próximo vídeo automático</span>
-          </label>
-        </div>
-      </footer>
     </div>
   </div>
 
