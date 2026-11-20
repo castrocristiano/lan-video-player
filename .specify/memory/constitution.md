@@ -1,50 +1,61 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Constituição do lan-video-player
 
-## Core Principles
+## Princípios Fundamentais
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Local-First e Zero Cloud (INEGOCIÁVEL)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+O sistema DEVE operar 100% offline dentro da rede local (LAN), sem exigir acesso à internet em tempo de execução. O projeto NÃO DEVE incluir telemetria, rastreamento de uso, chamadas a APIs externas ou carregamento de scripts, fontes e estilos a partir de CDNs externos; todos os assets da interface Web DEVEM ser servidos localmente pela própria aplicação.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Justificativa**: Um player de vídeo para LAN existe para privacidade, autonomia e baixa latência em rede doméstica ou corporativa fechada.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Segurança e Acesso Somente-Leitura à Mídia (INEGOCIÁVEL)
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Todos os diretórios de mídia configurados pelo usuário DEVEM ser acessados estritamente em modo somente-leitura. A aplicação NUNCA DEVE modificar, renomear, mover ou excluir arquivos de mídia do usuário. Toda rota ou parâmetro de arquivo recebido pela rede DEVE ser canonicalizado e validado para impedir *path traversal* e fuga via links simbólicos fora das raízes explicitamente autorizadas.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Justificativa**: Expor uma biblioteca de mídia na rede local exige garantia absoluta de integridade dos arquivos do usuário e isolamento do restante do sistema de arquivos.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Binário Único e Web UI Leve
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+O servidor DEVE ser distribuído como um binário único autossuficiente (implementado em Go ou Rust, a ser definido no plano arquitetural), com os assets estáticos da Web UI embutidos no executável. A aplicação NÃO DEVE exigir runtimes pesados, bancos de dados externos ou processos auxiliares obrigatórios para o funcionamento básico, mantendo baixo consumo de memória/CPU e interface leve compatível com navegadores modernos na LAN.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**Justificativa**: Facilita instalação imediata em qualquer máquina da rede (incluindo hardware modesto como Raspberry Pi ou servidores domésticos) sem atrito operacional.
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+### IV. Simplicidade e YAGNI
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+O produto DEVE priorizar configuração mínima (funcionamento imediato com argumentos simples ou variáveis de ambiente) e escopo enxuto focado na reprodução de vídeos na LAN. Funcionalidades complexas de servidores de mídia pesados (ex.: gestão multi-tenant, ecossistemas de plugins, indexação complexa ou integrações externas) NÃO DEVEM ser introduzidas sem uma especificação aprovada que justifique claramente o custo de manutenção.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Justificativa**: Complexidade acidental degrada confiabilidade, dificulta testes e afasta o projeto de sua proposta direta e leve.
+
+### V. Conformidade Aberta (GNU AGPL v3.0)
+
+O projeto é licenciado sob a GNU Affero General Public License v3.0 (`LICENSE`). Todo código-fonte, biblioteca de terceiros e asset embutido DEVE ser compatível com a GNU AGPL v3.0. Dependências proprietárias, binários fechados ou artefatos com restrições incompatíveis com software livre NÃO DEVEM ser incorporados ao repositório ou ao binário distribuído.
+
+**Justificativa**: Garante transparência, auditabilidade e preservação das liberdades de software livre inclusive em uso via rede.
+
+## Restrições Técnicas e de Distribuição
+
+- **Stack alvo**: Binário único compilado em **Go** ou **Rust** (definição final documentada no `/speckit-plan` da primeira funcionalidade) acompanhado de Web UI leve embutida e livre de dependências de rede externa.
+- **Escopo de rede**: A aplicação DEVE atender dispositivos na LAN via HTTP padrão (navegadores desktop, mobile e TVs compatíveis), sem exigir serviços de descoberta em nuvem ou túneis externos.
+- **Portabilidade**: O código central DEVE priorizar portabilidade entre Linux e demais sistemas operacionais suportados pela linguagem escolhida, evitando acoplamento desnecessário a APIs exclusivas de uma única plataforma.
+- **Conformidade de licença**: O arquivo `LICENSE` (GNU AGPL v3.0) DEVE permanecer na raiz do repositório e a interface/documentação DEVE respeitar a disponibilização do código-fonte correspondente prevista na Seção 13 da licença.
+
+## Fluxo de Desenvolvimento e Portões de Qualidade
+
+- **Política de testes pragmática**: Testes automatizados (unitários e de integração) SÃO OBRIGATÓRIOS para toda lógica central e contratos críticos, incluindo:
+  - validação de caminhos, proteção contra *path traversal* e garantia de acesso somente-leitura;
+  - varredura, listagem e metadados de arquivos de vídeo;
+  - contratos HTTP, status codes e comportamento de streaming de mídia.
+- **Portão de qualidade**: Nenhuma alteração DEVE ser mesclada com falhas nos testes automatizados, erros de compilação ou violações de qualquer princípio desta constituição.
+- **Fluxo Spec-Driven**: Novas funcionalidades DEVEM seguir o fluxo Spec Kit (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`), com verificação explícita de conformidade constitucional antes do início da implementação.
+
+## Governança
+
+- **Supremacia**: Esta constituição prevalece sobre convenções ad-hoc e escolhas locais de implementação. Em caso de conflito entre um plano/código e esta constituição, a constituição vence até que seja formalmente emendada.
+- **Procedimento de emenda**: Alterações nesta constituição DEVEM ser feitas por meio de `/speckit-constitution`, com justificativa explícita da mudança, atualização da versão semântica e revisão dos impactos em especificações ou planos ativos.
+- **Política de versionamento**:
+  - **MAJOR**: remoção ou redefinição incompatível de princípios fundamentais ou regras de governança.
+  - **MINOR**: adição de novo princípio, nova seção ou expansão material de regras existentes.
+  - **PATCH**: esclarecimentos, ajustes de redação ou correções sem mudança semântica.
+- **Revisão de conformidade**: Todo plano técnico (`/speckit-plan`) e revisão de código DEVE validar aderência aos cinco princípios fundamentais e aos portões de qualidade. Qualquer desvio ou aumento de complexidade DEVE ser justificado por escrito no plano antes da implementação.
+
+**Version**: 1.0.0 | **Ratified**: 2026-11-19 | **Last Amended**: 2026-11-19
