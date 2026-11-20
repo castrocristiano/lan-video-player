@@ -43,7 +43,7 @@ REPO="$1"
 TARGET_DIR="$2"
 FORCE="$3"
 
-mkdir -p "$TARGET_DIR"
+mkdir -p "$TARGET_DIR" "$TARGET_DIR/config"
 cd "$TARGET_DIR"
 
 echo "🔍 Consultando última release em: https://api.github.com/repos/$REPO/releases/latest"

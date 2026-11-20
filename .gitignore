@@ -15,6 +15,7 @@ coverage.txt
 coverage.html
 
 # Temporary files and local caches
+/config/
 *.tmp
 *.swp
 .tmp/

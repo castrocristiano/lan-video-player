@@ -5,6 +5,7 @@
 specs
 bin
 dist
+config
 *.test
 *.out
 *.log

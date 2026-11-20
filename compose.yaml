@@ -25,10 +25,7 @@ services:
       # Pastas do host montadas estritamente em modo somente-leitura (:ro) dentro de /media
       - "${LVP_HOST_HOME:-/home/cristiano}:/media/cristiano:ro"
       - "${LVP_HOST_MNT:-/mnt}:/media/mnt:ro"
-      # Volume dedicado (fora das pastas de mídia) para persistir as pastas selecionadas na Web UI (library.json)
-      - lvp_config:/config:Z
+      # Diretório local (fora das pastas de mídia) para persistir as pastas selecionadas na Web UI (library.json)
+      - "./config:/config"
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
-
-volumes:
-  lvp_config:
