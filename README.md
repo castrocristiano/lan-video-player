@@ -41,7 +41,7 @@ Ou inicie apenas com `--browse-base "$HOME/Videos"` e selecione as pastas direta
 
 ```bash
 mkdir -p ./media
-LVP_HOST_MEDIA=/caminho/para/seus/videos LVP_PORT=8080 podman compose up -d --build
+LVP_HOST_MEDIA=/caminho/para/seus/videos LVP_PORT=8090 podman compose up -d --build
 ```
 
 *(Também compatível com `podman-compose up -d --build` e `docker compose up -d --build`.)*
