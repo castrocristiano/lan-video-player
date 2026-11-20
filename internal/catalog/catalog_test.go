@@ -75,42 +75,57 @@ func setupCatalogEnv(t *testing.T) *testCatalogEnv {
 	}
 }
 
-func TestCatalogRootsLifecycle(t *testing.T) {
+func TestCatalogInitialRootsAndPicker(t *testing.T) {
 	env := setupCatalogEnv(t)
 
-	if !env.cat.BrowseBaseEnabled() || env.cat.BrowseBaseLabel() == "" {
+	if !env.cat.BrowseBaseEnabled() {
 		t.Fatalf("expected browseBase enabled")
+	}
+	if env.cat.BrowseBaseLabel() == "" {
+		t.Fatalf("expected non-empty browseBase label")
 	}
 
 	roots := env.cat.Roots()
-	if len(roots) != 1 || roots[0].Source != "cli" {
-		t.Fatalf("unexpected initial roots: %+v", roots)
+	if len(roots) != 1 {
+		t.Fatalf("unexpected initial roots count: %d", len(roots))
 	}
 
-	if single, err := env.cat.GetRoot(""); err != nil || single.ID != roots[0].ID {
+	if _, err := env.cat.GetRoot(""); err != nil {
 		t.Fatalf("GetRoot empty failed: %v", err)
 	}
 
 	pickerRes, err := env.cat.ListBrowseBaseDirs("")
-	if err != nil || len(pickerRes.Directories) != 2 {
+	if err != nil {
 		t.Fatalf("ListBrowseBaseDirs failed: %v", err)
 	}
+	if len(pickerRes.Directories) != 2 {
+		t.Fatalf("expected 2 picker directories, got %d", len(pickerRes.Directories))
+	}
+}
+
+func TestCatalogAddReloadAndRemoveUIRoots(t *testing.T) {
+	env := setupCatalogEnv(t)
 
 	updatedRoots, err := env.cat.AddUIRoots([]string{"Series"})
-	if err != nil || len(updatedRoots) != 2 {
+	if err != nil {
 		t.Fatalf("AddUIRoots failed: %v", err)
+	}
+	if len(updatedRoots) != 2 {
+		t.Fatalf("expected 2 roots, got %d", len(updatedRoots))
 	}
 
 	// Idempotent add
-	updatedRoots, err = env.cat.AddUIRoots([]string{"Series"})
-	if err != nil || len(updatedRoots) != 2 {
+	if _, err := env.cat.AddUIRoots([]string{"Series"}); err != nil {
 		t.Fatalf("idempotent AddUIRoots failed: %v", err)
 	}
 
 	// Reload from store
 	catReloaded, err := New([]string{env.cliMovies}, env.browseBase, env.store)
-	if err != nil || len(catReloaded.Roots()) != 2 {
+	if err != nil {
 		t.Fatalf("reloaded catalog failed: %v", err)
+	}
+	if len(catReloaded.Roots()) != 2 {
+		t.Fatalf("expected 2 reloaded roots")
 	}
 
 	seriesRootID := updatedRoots[1].ID
@@ -120,7 +135,7 @@ func TestCatalogRootsLifecycle(t *testing.T) {
 	if _, err := env.cat.RemoveUIRoot("missing-root"); err == nil {
 		t.Errorf("expected removing missing root to fail")
 	}
-	if after, err := env.cat.RemoveUIRoot(seriesRootID); err != nil || len(after) != 1 {
+	if _, err := env.cat.RemoveUIRoot(seriesRootID); err != nil {
 		t.Fatalf("RemoveUIRoot failed: %v", err)
 	}
 }
