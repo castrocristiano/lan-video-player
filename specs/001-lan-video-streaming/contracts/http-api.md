@@ -261,23 +261,41 @@ Busca vídeos pelo nome (insensível a maiúsculas/minúsculas) em todas as raí
 
 ### 2.4 `GET /api/v1/stream/{rootId}/{path...}`
 
-Transmite o arquivo de vídeo com suporte completo a **HTTP Range Requests** (`FR-006`, `SC-003`).
+Transmite o arquivo de vídeo com suporte completo a **HTTP Range Requests** (`FR-006`, `SC-003`) ou transcodificação em tempo real em memória via `ffmpeg` (`?transcode=1&start=<sec>`) para contêineres legados (`.avi`, `.rmvb`, `.rm`, `.wmv`, `.flv`, `.mpg`, `.ts`) ou fallback de codec.
 
+- **Query Parameters (opcionais)**:
+  - `transcode=1`: Força transcodificação em tempo real para MP4 fragmentado (`H.264/AAC`) via `pipe:1`.
+  - `start=<segundos>`: Posiciona o início do stream transcodificado (`ffmpeg -ss`) para suportar *seek* em qualquer minuto.
+  - `direct=1`: Força entrega direta do arquivo original sem transcodificação.
 - **Request Headers suportados**:
   - `Range: bytes=<start>-<end>` (RFC 9110)
   - `If-Modified-Since`
 - **Response Headers**:
-  - `Accept-Ranges: bytes`
-  - `Content-Type: <mimeType>`
+  - `Accept-Ranges: bytes` (modo direto)
+  - `Content-Type: <mimeType>` (ou `video/mp4` quando transcodificado)
   - `Content-Length: <chunk-or-full-size>`
   - `Content-Range: bytes <start>-<end>/<total>` (quando `206 Partial Content`)
   - `Last-Modified: <RFC1123>`
 - **Status Codes**:
-  - `200 OK`: Transmissão completa quando `Range` não é enviado.
+  - `200 OK`: Transmissão completa ou stream transcodificado em tempo real.
   - `206 Partial Content`: Transmissão do intervalo solicitado para início rápido e *seek*.
   - `416 Range Not Satisfiable`: Intervalo fora do tamanho do arquivo.
   - `403 Forbidden`: Tentativa de acesso fora da raiz ou arquivo não permitido.
   - `404 Not Found`: Vídeo não encontrado ou removido do disco (`FR-017`).
+
+---
+
+### 2.4.1 `GET /api/v1/probe/{rootId}/{path...}`
+
+Inspeciona a duração total (em segundos) via `ffprobe` (com cache em memória) e informa se o arquivo requer transcodificação automática no player.
+
+- **Response `200 OK`** (`application/json`):
+```json
+{
+  "durationSeconds": 1351.016,
+  "requiresTranscode": true
+}
+```
 
 ---
 

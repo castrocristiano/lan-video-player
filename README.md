@@ -2,6 +2,8 @@
 
 Servidor e player de vídeo leve para rede local (**LAN**), distribuído como **binário único em Go** com **Web UI embutida (`//go:embed`)**, operando **100% offline** e em modo **estritamente somente-leitura** sobre suas pastas de mídia.
 
+> **Documentação completa**: consulte a pasta [wiki/](wiki/Home.md) ou a Wiki do repositório no GitHub.
+
 ---
 
 ## Principais Funcionalidades
@@ -9,9 +11,14 @@ Servidor e player de vídeo leve para rede local (**LAN**), distribuído como **
 - **100% Offline & Zero Cloud**: Nenhum CDN externo, telemetria ou dependência de internet (`Content-Security-Policy: default-src 'self'`).
 - **Somente-Leitura Estrito & Proteção de Caminhos**: Isolamento via `filepath.Abs` + `filepath.EvalSymlinks` (`internal/safefs`), bloqueando *path traversal* (`..`) e links simbólicos externos. Nenhum arquivo é criado ou modificado nas pastas de mídia.
 - **Seletor Visual de Pastas na Web UI**: Adicione ou desvincule uma ou mais pastas diretamente pelo navegador (dentro do diretório-base autorizado `--browse-base`), com salvamento automático em `library.json` (fora das pastas de mídia).
-- **Streaming HTTP Range (`206 Partial Content`)**: Início imediato e *seek* instantâneo na linha do tempo sem precisar baixar o arquivo completo.
-- **Controles Completos**: Velocidade de reprodução (`0.5x` a `2.0x`), tela cheia, atalhos de teclado/controle de TV, retomada automática de onde parou por dispositivo (`localStorage`), próximo vídeo automático com contagem regressiva, legendas locais (`.vtt` e conversão em memória de `.srt`) e troca de faixa de áudio.
-- **Pronto para Podman Rootless**: `Containerfile` multi-stage não-root (`10001:10001`) e `compose.yaml` compatível com `podman compose` (`:ro,Z` para SELinux).
+- **Streaming HTTP Range (`206 Partial Content`) & Transcodificação em Tempo Real**:
+  - Reprodução direta com início imediato e *seek* instantâneo para `.mp4`, `.webm`, `.m4v`, `.mov`, `.ogv`.
+  - Transcodificação automática em memória via `ffmpeg` (H.264/AAC MP4 fragmentado) para formatos legados (`.avi`, `.rmvb`, `.rm`, `.wmv`, `.flv`, `.mpg`, `.ts`) com inspeção de duração (`/api/v1/probe`) e barra de *seek* completa (`?transcode=1&start=<sec>`).
+- **Player Estilo YouTube em Tela Cheia**:
+  - Em tela cheia, apenas o vídeo ocupa `100vw × 100vh`; os controles aparecem suavemente ao mover o mouse e ocultam-se automaticamente após 2,5s de inatividade.
+  - Velocidade (`0.5x` a `2.0x`), atalhos de teclado/controle de TV (`Espaço`/`K`, `←`/`→`, `F`, `Esc`), retomada automática por dispositivo (`localStorage`), próximo vídeo automático com contagem regressiva, legendas locais (`.vtt` e conversão em memória de `.srt`) e seletor de faixa de áudio.
+- **Pronto para Podman Rootless & Docker Compose**: `Containerfile` multi-stage não-root (`10001:10001`) e `compose.yaml` com `userns_mode: keep-id` e montagens somente-leitura (`:ro`) de `/home` e `/mnt` na porta `8090`.
+- **CI/CD com SonarQube**: Esteira completa em `.github/workflows/ci.yml` (`go vet`, `go test -race`, cobertura, SonarQube Quality Gate, Auto-PR e Release automática) e sincronização de Wiki em `.github/workflows/deploy-wiki.yml`.
 
 ---
 
@@ -28,23 +35,25 @@ CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/lan-video-player ./cmd/
 ```bash
 ./bin/lan-video-player \
   --addr 0.0.0.0:8080 \
-  --browse-base "$HOME/Videos" \
-  --media "$HOME/Videos/Filmes" \
-  --media "$HOME/Videos/Series"
+  --browse-base "$HOME" \
+  --media "$HOME/Videos/Filmes"
 ```
 
-Ou inicie apenas com `--browse-base "$HOME/Videos"` e selecione as pastas diretamente no botão **"Pastas da Biblioteca"** na interface web (`http://localhost:8080` ou `http://<IP-DA-LAN>:8080`).
+Ou inicie apenas com `--browse-base "$HOME"` e selecione as pastas diretamente no botão **"Pastas da Biblioteca"** na interface web (`http://localhost:8080` ou `http://<IP-DA-LAN>:8080`).
 
 ---
 
-## 2. Execução com `podman compose` (Rootless)
+## 2. Execução com `podman compose` / `docker compose`
 
 ```bash
-mkdir -p ./media
-LVP_HOST_MEDIA=/caminho/para/seus/videos LVP_PORT=8090 podman compose up -d --build
+cp .env.example .env
+mkdir -p ./config
+
+# Subir com Podman Compose (ou podman-compose / docker compose):
+podman compose up -d --build
 ```
 
-*(Também compatível com `podman-compose up -d --build` e `docker compose up -d --build`.)*
+Acesse no navegador: `http://<IP-DO-SERVIDOR>:8090`
 
 ---
 
@@ -65,7 +74,8 @@ LVP_HOST_MEDIA=/caminho/para/seus/videos LVP_PORT=8090 podman compose up -d --bu
 ## 4. Testes Automatizados
 
 ```bash
-go test -v -race ./...
+go vet ./...
+go test -v -race -coverprofile=coverage.out ./...
 ```
 
 ---

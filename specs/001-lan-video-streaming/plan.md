@@ -90,26 +90,32 @@ internal/
 │   └── safefs_test.go           # Testes de segurança contra ../, encoding e symlinks externos (FR-008, FR-009)
 ├── catalog/
 │   ├── catalog.go               # Gestão dinâmica de raízes (add/remove), listagem de pastas/vídeos, breadcrumbs e busca
+│   ├── ffmpeg.go                # Descoberta de ffmpeg/ffprobe e inspeção de duração (/api/v1/probe)
 │   ├── picker.go                # Listagem segura de diretórios dentro de --browse-base para o seletor visual (FR-018)
 │   ├── subtitles.go             # Descoberta de legendas .vtt/.srt e conversão em memória .srt -> WebVTT
 │   ├── thumbnail.go             # Resolução de sidecar somente-leitura e extração opcional em cache efêmero
 │   └── catalog_test.go          # Testes unitários de varredura, seletor de pastas, busca, ordenação e SRT->VTT
 └── server/
-    ├── server.go                # Roteador HTTP (http.ServeMux), middlewares CSP/logging e handlers da API (incluindo POST/DELETE roots e GET fs/dirs)
-    ├── stream.go                # Handler de streaming de vídeo com http.ServeContent (HTTP Range 206)
+    ├── server.go                # Roteador HTTP (http.ServeMux), middlewares CSP/logging e handlers da API (incluindo POST/DELETE roots, GET fs/dirs e GET probe)
+    ├── stream.go                # Handler de streaming HTTP Range 206 e transcodificação on-the-fly via ffmpeg
     └── server_test.go           # Testes de integração HTTP (roots, add/remove folders, browse, search, range 206, 403, subtitles)
 
 web/
 ├── embed.go                     # Diretiva //go:embed static/* e disponibilização do fs.FS
 └── static/
-    ├── index.html               # Shell semântico responsivo (Desktop, Mobile e Smart TV) + rodapé AGPLv3
-    ├── styles.css               # Estilos locais (CSS Grid, dark theme de cinema, barra de progresso, TV focus)
-    └── app.js                   # Lógica de navegação, busca, player com velocidade/legendas/áudio/autoplay e localStorage
+    ├── index.html               # Shell semântico responsivo (Desktop, Mobile e Smart TV) + barra de seek + rodapé AGPLv3
+    ├── styles.css               # Estilos locais (CSS Grid, tema cinema, tela cheia YouTube-style com auto-hide)
+    └── app.js                   # Lógica de navegação, busca, player com seek/transcode/velocidade/legendas/áudio/autoplay e localStorage
 
+.github/workflows/
+├── ci.yml                       # Esteira CI (go vet, go test -race, SonarQube Quality Gate, Auto-PR e Release)
+└── deploy-wiki.yml              # Sincronização automática da pasta wiki/ com o GitHub Wiki
+wiki/                            # Documentação técnica em Markdown para o GitHub Wiki
 Containerfile                    # Build multi-stage (golang:1.23-alpine -> alpine:3.20 não-root)
-compose.yaml                     # Configuração pronta para podman compose / docker compose rootless (:ro,Z)
-.gitignore                       # Binários compilados e artefatos temporários locais
-README.md                        # Documentação de uso direto e via Podman Compose
+compose.yaml                     # Configuração pronta para podman compose / docker compose rootless (porta 8090, :ro, keep-id)
+sonar-project.properties         # Configuração de análise e cobertura Go para o SonarQube
+.gitignore                       # Binários compilados, cobertura e scripts/tokens locais
+README.md                        # Documentação principal de uso direto, container e CI/CD
 ```
 
 **Structure Decision**: Estrutura padrão de projeto Go enxuto (`cmd/`, `internal/`, `web/`) na raiz do repositório, permitindo compilação direta (`go build ./cmd/lan-video-player`), execução de todos os testes com um único comando (`go test ./...`) e embutimento limpo dos arquivos estáticos da Web UI (`web/embed.go`) e da licença `LICENSE`.
