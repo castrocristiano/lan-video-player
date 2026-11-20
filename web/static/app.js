@@ -24,6 +24,7 @@
     transcodeBaseOffset: 0,
     totalDuration: 0,
     isDraggingSeek: false,
+    fsHideTimer: null,
     autoplayTimer: null,
     autoplayRemaining: 5,
     lastProgressSaveAt: 0,
@@ -64,6 +65,8 @@
 
     // Player Modal
     playerModal: document.getElementById("playerModal"),
+    playerDialog: document.querySelector("#playerModal .player-dialog"),
+    playerBottomControls: document.getElementById("playerBottomControls"),
     playerVideoTitle: document.getElementById("playerVideoTitle"),
     playerVideoPath: document.getElementById("playerVideoPath"),
     prevVideoBtn: document.getElementById("prevVideoBtn"),
@@ -128,7 +131,8 @@
         volume: typeof parsed.volume === "number" ? Math.min(1, Math.max(0, parsed.volume)) : 1.0,
         muted: Boolean(parsed.muted),
       };
-    } catch (_) {
+    } catch (err) {
+      console.debug("Falha ao ler preferências:", err);
       return defaults;
     }
   }
@@ -136,8 +140,8 @@
   function savePreferences() {
     try {
       localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(state.prefs));
-    } catch (_) {
-      // Ignore storage quota errors in private browsing
+    } catch (err) {
+      console.debug("Armazenamento local indisponível:", err);
     }
   }
 
@@ -147,13 +151,14 @@
       const raw = localStorage.getItem(PROGRESS_KEY_PREFIX + videoId);
       if (!raw) return null;
       return JSON.parse(raw);
-    } catch (_) {
+    } catch (err) {
+      console.debug("Falha ao ler progresso:", err);
       return null;
     }
   }
 
   function savePlaybackProgress(videoId, currentTime, duration, forceCompleted) {
-    if (!videoId || !duration || !isFinite(duration) || duration <= 0) return;
+    if (!videoId || !duration || !Number.isFinite(duration) || duration <= 0) return;
     const ratio = Math.min(1, Math.max(0, currentTime / duration));
     const completed = Boolean(forceCompleted || ratio >= 0.95);
     const entry = {
@@ -166,8 +171,8 @@
     };
     try {
       localStorage.setItem(PROGRESS_KEY_PREFIX + videoId, JSON.stringify(entry));
-    } catch (_) {
-      // Ignore quota errors
+    } catch (err) {
+      console.debug("Falha ao salvar progresso:", err);
     }
   }
 
@@ -186,13 +191,14 @@
     try {
       const d = new Date(isoStr);
       return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-    } catch (_) {
+    } catch (err) {
+      console.debug("Data inválida:", err);
       return "";
     }
   }
 
   function formatDuration(sec) {
-    if (!isFinite(sec) || sec < 0) return "00:00";
+    if (!Number.isFinite(sec) || sec < 0) return "00:00";
     const total = Math.floor(sec);
     const h = Math.floor(total / 3600);
     const m = Math.floor((total % 3600) / 60);
@@ -219,10 +225,12 @@
       let errMsg = `Erro HTTP ${resp.status}`;
       try {
         const data = await resp.json();
-        if (data && data.error && data.error.message) {
+        if (data?.error?.message) {
           errMsg = data.error.message;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.debug("Resposta de erro não-JSON:", err);
+      }
       throw new Error(errMsg);
     }
     return resp.json();
@@ -236,7 +244,7 @@
       if (data.browseBase) {
         state.browseBase = data.browseBase;
       }
-      if (data.meta && data.meta.version) {
+      if (data.meta?.version) {
         dom.appVersionText.textContent = "v" + data.meta.version;
       }
 
@@ -594,10 +602,10 @@
 
   function getEffectiveDuration() {
     const v = dom.videoElement;
-    if (state.totalDuration > 0 && isFinite(state.totalDuration)) {
+    if (state.totalDuration > 0 && Number.isFinite(state.totalDuration)) {
       return state.totalDuration;
     }
-    if (v.duration > 0 && isFinite(v.duration)) {
+    if (v.duration > 0 && Number.isFinite(v.duration)) {
       return v.duration;
     }
     return 0;
@@ -624,7 +632,7 @@
     const clamped = dur > 0 ? Math.max(0, Math.min(dur - 1, targetSec)) : Math.max(0, targetSec);
     const v = dom.videoElement;
 
-    if (!state.isTranscodedStream && isFinite(v.duration) && v.duration > 0) {
+    if (!state.isTranscodedStream && Number.isFinite(v.duration) && v.duration > 0) {
       state.transcodeBaseOffset = 0;
       v.currentTime = clamped;
       updateSeekBarUI();
@@ -686,12 +694,12 @@
       if (probe && typeof probe.durationSeconds === "number" && probe.durationSeconds > 0) {
         state.totalDuration = probe.durationSeconds;
       }
-      if (probe && probe.requiresTranscode) {
+      if (probe?.requiresTranscode) {
         state.isTranscodedStream = true;
         state.triedTranscodeFallback = true;
       }
-    } catch (_) {
-      // Fallback to browser metadata if probe fails
+    } catch (err) {
+      console.debug("Fallback para metadados nativos do navegador:", err);
     }
 
     // Attach external local subtitle tracks (FR-014)
@@ -730,7 +738,7 @@
     const onLoadedMeta = () => {
       v.removeEventListener("loadedmetadata", onLoadedMeta);
       v.playbackRate = state.prefs.playbackRate;
-      if (v.duration > 0 && isFinite(v.duration) && state.totalDuration <= 0) {
+      if (v.duration > 0 && Number.isFinite(v.duration) && state.totalDuration <= 0) {
         state.totalDuration = v.duration;
       }
       populateAudioTracks();
@@ -882,7 +890,7 @@
     renderActiveRootsInModal();
     dom.libraryModal.classList.remove("hidden");
 
-    if (state.browseBase && state.browseBase.enabled) {
+    if (state.browseBase?.enabled) {
       dom.pickerSection.classList.remove("hidden");
       await loadPickerDirectory("");
     } else {
@@ -1046,7 +1054,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error((data && data.error && data.error.message) || "Erro ao adicionar pastas.");
+        throw new Error(data?.error?.message || "Erro ao adicionar pastas.");
       }
 
       state.roots = data.roots || [];
@@ -1056,7 +1064,7 @@
       await loadPickerDirectory(state.pickerCurrentPath);
       showPickerStatus("Pasta(s) adicionada(s) e salva(s) na biblioteca!");
 
-      const newestRoot = state.roots[state.roots.length - 1];
+      const newestRoot = state.roots.at(-1);
       if (newestRoot) {
         await loadRootsAndRefresh(newestRoot.id);
       }
@@ -1073,7 +1081,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error((data && data.error && data.error.message) || "Erro ao desvincular pasta.");
+        throw new Error(data?.error?.message || "Erro ao desvincular pasta.");
       }
       state.roots = data.roots || [];
       renderActiveRootsInModal();
@@ -1194,11 +1202,57 @@
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       } else {
-        dom.playerModal.querySelector(".player-dialog").requestFullscreen().catch(() => {
+        dom.playerDialog.requestFullscreen().catch(() => {
           dom.videoElement.requestFullscreen().catch(() => {});
         });
       }
     });
+
+    function showFullscreenControlsTemporarily() {
+      if (!document.fullscreenElement) {
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
+        return;
+      }
+      dom.playerDialog.classList.add("fs-controls-visible");
+      dom.playerDialog.classList.remove("fs-idle");
+      clearTimeout(state.fsHideTimer);
+
+      const isHoveringControls =
+        dom.playerBottomControls.matches(":hover") ||
+        dom.playerDialog.querySelector(".player-header").matches(":hover");
+
+      if (!dom.videoElement.paused && !isHoveringControls) {
+        state.fsHideTimer = setTimeout(() => {
+          if (document.fullscreenElement && !dom.videoElement.paused) {
+            dom.playerDialog.classList.remove("fs-controls-visible");
+            dom.playerDialog.classList.add("fs-idle");
+          }
+        }, 2500);
+      }
+    }
+
+    dom.playerDialog.addEventListener("mousemove", showFullscreenControlsTemporarily);
+    dom.playerDialog.addEventListener("touchstart", showFullscreenControlsTemporarily, { passive: true });
+    dom.playerDialog.addEventListener("mouseleave", () => {
+      if (document.fullscreenElement && !dom.videoElement.paused) {
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible");
+        dom.playerDialog.classList.add("fs-idle");
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      if (document.fullscreenElement) {
+        dom.fullscreenBtn.innerHTML = "&#x26F6; Sair Tela Cheia";
+        showFullscreenControlsTemporarily();
+      } else {
+        dom.fullscreenBtn.innerHTML = "&#x26F6; Tela Cheia";
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
+      }
+    });
+    dom.videoElement.addEventListener("pause", showFullscreenControlsTemporarily);
+    dom.videoElement.addEventListener("play", showFullscreenControlsTemporarily);
 
     dom.muteBtn.addEventListener("click", () => {
       dom.videoElement.muted = !dom.videoElement.muted;
@@ -1320,37 +1374,45 @@
     });
 
     // Keyboard & Smart TV Remote shortcuts
-    document.addEventListener("keydown", (e) => {
-      if (!dom.playerModal.classList.contains("hidden")) {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          closePlayer();
-          return;
-        }
-        const tag = (document.activeElement && document.activeElement.tagName) || "";
-        if (tag === "SELECT" || tag === "INPUT" || tag === "BUTTON") {
-          return;
-        }
-        if (e.key === " " || e.key === "k" || e.key === "K") {
-          e.preventDefault();
-          if (v.paused) v.play().catch(() => {});
-          else v.pause();
-        } else if (e.key === "ArrowRight") {
-          e.preventDefault();
-          seekToSeconds(getEffectiveCurrentTime() + 10);
-        } else if (e.key === "ArrowLeft") {
-          e.preventDefault();
-          seekToSeconds(getEffectiveCurrentTime() - 10);
-        } else if (e.key === "f" || e.key === "F") {
-          e.preventDefault();
-          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-          else v.requestFullscreen().catch(() => {});
-        }
-      } else if (!dom.libraryModal.classList.contains("hidden") && e.key === "Escape") {
-        e.preventDefault();
-        closeLibraryModal();
-      }
-    });
+    document.addEventListener("keydown", handleGlobalKeydown);
+  }
+
+  function handleGlobalKeydown(e) {
+    if (!dom.playerModal.classList.contains("hidden")) {
+      handlePlayerKeydown(e);
+      return;
+    }
+    if (!dom.libraryModal.classList.contains("hidden") && e.key === "Escape") {
+      e.preventDefault();
+      closeLibraryModal();
+    }
+  }
+
+  function handlePlayerKeydown(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closePlayer();
+      return;
+    }
+    const tag = document.activeElement?.tagName || "";
+    if (tag === "SELECT" || tag === "INPUT" || tag === "BUTTON") {
+      return;
+    }
+    const v = dom.videoElement;
+    if (e.key === " " || e.key === "k" || e.key === "K") {
+      e.preventDefault();
+      if (v.paused) v.play().catch(() => {});
+      else v.pause();
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      seekToSeconds(getEffectiveCurrentTime() + 10);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      seekToSeconds(getEffectiveCurrentTime() - 10);
+    } else if (e.key === "f" || e.key === "F") {
+      e.preventDefault();
+      dom.fullscreenBtn.click();
+    }
   }
 
   // Initialize
