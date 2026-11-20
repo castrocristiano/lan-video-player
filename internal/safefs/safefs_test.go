@@ -107,4 +107,27 @@ func TestRootResolveAndTraversalProtection(t *testing.T) {
 	if _, writeErr := f.Write([]byte("mutate")); writeErr == nil {
 		t.Errorf("expected write to read-only file descriptor to fail, but it succeeded")
 	}
+
+	// 7. RelFromRoot and Stat and NewRoot edge cases
+	if rel, ok := root.RelFromRoot(validVideo); !ok || rel != "Movies/clip.mp4" {
+		t.Errorf("RelFromRoot validVideo failed: rel=%q ok=%v", rel, ok)
+	}
+	if _, ok := root.RelFromRoot(outsideSecret); ok {
+		t.Errorf("RelFromRoot should return false for outside path")
+	}
+	if info, norm, err := root.Stat("Movies/clip.mp4"); err != nil || info.IsDir() || norm != "Movies/clip.mp4" {
+		t.Errorf("Stat validVideo failed: err=%v", err)
+	}
+	if _, err := NewRoot(""); err == nil {
+		t.Errorf("expected error for empty NewRoot path")
+	}
+	if _, err := NewRoot( filepath.Join(tmp, "missing_dir") ); !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound for missing NewRoot dir, got %v", err)
+	}
+	if _, err := NewRoot(validVideo); !errors.Is(err, ErrNotDirectory) {
+		t.Errorf("expected ErrNotDirectory when NewRoot points to file, got %v", err)
+	}
+	if _, _, _, err := root.OpenReadOnly("Movies"); err == nil {
+		t.Errorf("expected OpenReadOnly on directory to fail")
+	}
 }

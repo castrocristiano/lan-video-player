@@ -27,7 +27,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local environment overrides
+# Local environment overrides and remote deployment scripts (kept out of GitHub)
 .env
 .env.*
 !.env.example
+.sonar_remote_token
+.current_release_version
+.scannerwork/
+update_remote.sh
+sonar_check.sh

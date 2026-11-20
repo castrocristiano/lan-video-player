@@ -16,7 +16,7 @@ FROM docker.io/library/alpine:3.20
 RUN apk add --no-cache ffmpeg ca-certificates tzdata && \
     addgroup -g 10001 -S lvp && \
     adduser -u 10001 -S -G lvp -h /config lvp && \
-    mkdir -p /media/cristiano /media/mnt /config /tmp/lan-video-player-thumbs && \
+    mkdir -p /media/home /media/mnt /config /tmp/lan-video-player-thumbs && \
     chown -R 10001:10001 /media /config /tmp/lan-video-player-thumbs
 
 WORKDIR /app

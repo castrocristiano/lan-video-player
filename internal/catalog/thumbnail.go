@@ -18,12 +18,14 @@ import (
 // ErrNoThumbnail indicates no sidecar thumbnail exists and server-side extraction is unavailable.
 var ErrNoThumbnail = errors.New("thumbnail unavailable on server")
 
+const mimeImageJPEG = "image/jpeg"
+
 var sidecarImageExtensions = []struct {
 	ext  string
 	mime string
 }{
-	{".jpg", "image/jpeg"},
-	{".jpeg", "image/jpeg"},
+	{".jpg", mimeImageJPEG},
+	{".jpeg", mimeImageJPEG},
 	{".png", "image/png"},
 	{".webp", "image/webp"},
 }
@@ -70,7 +72,7 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 	cacheFilePath := filepath.Join(cacheDir, cacheFilename)
 
 	if cachedData, readErr := os.ReadFile(cacheFilePath); readErr == nil && len(cachedData) > 0 {
-		return cachedData, "image/jpeg", nil
+		return cachedData, mimeImageJPEG, nil
 	}
 
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
@@ -114,7 +116,7 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 	}
 
 	_ = os.Rename(tmpPath, cacheFilePath)
-	return data, "image/jpeg", nil
+	return data, mimeImageJPEG, nil
 }
 
 func findSidecarImage(sRoot *safefs.Root, videoNormRel string) ([]byte, string, bool) {

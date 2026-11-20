@@ -317,4 +317,37 @@ func TestHTTPSearchThumbnailsAndSubtitles(t *testing.T) {
 	if len(entries) != 3 { // Demo Video.mp4, Demo Video.pt-BR.srt, evil_link.mp4
 		t.Errorf("expected moviesDir to remain untouched with 3 entries, got %d", len(entries))
 	}
+
+	// 6. GET /LICENSE and GET /api/v1/probe/...
+	licRes, err := http.Get(ts.URL + "/LICENSE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	licBody, _ := io.ReadAll(licRes.Body)
+	licRes.Body.Close()
+	if licRes.StatusCode != http.StatusOK || !strings.Contains(string(licBody), "GNU AFFERO GENERAL PUBLIC LICENSE") {
+		t.Errorf("expected GNU AGPL license at /LICENSE, got status=%d", licRes.StatusCode)
+	}
+
+	probeURL := ts.URL + strings.Replace(demoOut.Videos[0].StreamURL, "/api/v1/stream/", "/api/v1/probe/", 1)
+	probeRes, err := http.Get(probeURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	probeRes.Body.Close()
+	if probeRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK from /api/v1/probe, got %d", probeRes.StatusCode)
+	}
+
+	// 7. Method Not Allowed checks (405)
+	for _, endpoint := range []string{"/api/v1/browse", "/api/v1/search", "/api/v1/fs/dirs", "/api/v1/probe/r/v.mp4", "/api/v1/subtitles/r/s.srt", "/api/v1/thumbnails/r/v.mp4", "/api/v1/stream/r/v.mp4"} {
+		postResp, pErr := http.Post(ts.URL+endpoint, "application/json", bytes.NewBufferString(`{}`))
+		if pErr != nil {
+			t.Fatal(pErr)
+		}
+		postResp.Body.Close()
+		if postResp.StatusCode != http.StatusMethodNotAllowed {
+			t.Errorf("expected 405 Method Not Allowed for POST %s, got %d", endpoint, postResp.StatusCode)
+		}
+	}
 }

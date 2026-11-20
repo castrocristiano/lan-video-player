@@ -160,40 +160,57 @@ func New(cliMediaDirs []string, browseBaseDir string, store *config.Store) (*Cat
 		c.browseBase = bRoot
 	}
 
-	// Register CLI roots first
 	for _, dir := range cliMediaDirs {
 		if err := c.registerRootLocked(dir, "cli"); err != nil {
 			return nil, err
 		}
 	}
 
-	// Load saved UI roots from store (FR-019)
-	if store != nil {
-		savedCfg, err := store.Load()
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range savedCfg.Roots {
-			targetPath := entry.Path
-			if c.browseBase != nil && !filepath.IsAbs(targetPath) {
-				resolved, _, rErr := c.browseBase.Resolve(targetPath)
-				if rErr == nil {
-					targetPath = resolved
-				}
-			}
-			// If a previously saved folder was removed externally from disk, skip gracefully
-			// without crashing the entire server startup.
-			if c.browseBase != nil {
-				if _, ok := c.browseBase.RelFromRoot(targetPath); !ok {
-					continue
-				}
-			}
-			_ = c.registerRootLocked(targetPath, "ui")
-		}
+	if err := c.loadSavedRootsLocked(); err != nil {
+		return nil, err
 	}
 
 	c.recomputeLabelsLocked()
 	return c, nil
+}
+
+func (c *Catalog) loadSavedRootsLocked() error {
+	if c.store == nil {
+		return nil
+	}
+	savedCfg, err := c.store.Load()
+	if err != nil {
+		return err
+	}
+	for _, entry := range savedCfg.Roots {
+		targetPath := c.resolveSavedEntryPath(entry.Path)
+		if targetPath == "" {
+			continue
+		}
+		_ = c.registerRootLocked(targetPath, "ui")
+	}
+	return nil
+}
+
+func (c *Catalog) resolveSavedEntryPath(rawPath string) string {
+	targetPath := strings.TrimSpace(rawPath)
+	if targetPath == "" {
+		return ""
+	}
+	if c.browseBase == nil {
+		return targetPath
+	}
+	if !filepath.IsAbs(targetPath) {
+		resolved, _, err := c.browseBase.Resolve(targetPath)
+		if err != nil {
+			return ""
+		}
+		return resolved
+	}
+	if _, ok := c.browseBase.RelFromRoot(targetPath); !ok {
+		return ""
+	}
+	return targetPath
 }
 
 // BrowseBaseEnabled reports whether a --browse-base directory is active for the UI folder picker.
