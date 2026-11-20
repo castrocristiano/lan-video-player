@@ -140,6 +140,10 @@
 - [X] T036 [P] Create `compose.yaml` compatible with rootless `podman compose` / `podman-compose` and `docker compose` (read-only media volume mounts with `:ro,Z`, persistent `/config` volume for `library.json`, and ephemeral `tmpfs` for `/tmp`) in `compose.yaml`
 - [X] T037 [P] Write project documentation covering binary execution, Web UI folder selection, Podman rootless setup (`:ro,Z`), CLI/env flags, and GNU AGPL v3.0 license notice in `README.md`
 - [X] T038 Execute full test suite (`go test -v -race ./...`), static binary build verification, and end-to-end validation checks from `specs/001-lan-video-streaming/quickstart.md`
+- [X] T039 Implement optional on-the-fly FFmpeg transcoding (`?transcode=1&start=<sec>`) and `GET /api/v1/probe/{rootId}/{path...}` duration probing with dedicated interactive seekbar in `internal/catalog/ffmpeg.go`, `internal/server/stream.go`, and `web/static/app.js`
+- [X] T040 Implement YouTube-style fullscreen video mode with auto-hiding hover overlay controls in `web/static/index.html`, `web/static/styles.css`, and `web/static/app.js`
+- [X] T041 [P] Configure CI/CD pipeline (`go vet`, `go test -race`, SonarQube Quality Gate, Auto-PR, Release, and Wiki Sync) in `.github/workflows/ci.yml`, `.github/workflows/deploy-wiki.yml`, and `sonar-project.properties`
+- [X] T042 [P] Create GitHub Wiki pages and update `README.md` and SDD documentation in `wiki/` and `specs/001-lan-video-streaming/`
 
 ---
 

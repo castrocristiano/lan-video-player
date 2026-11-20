@@ -11,7 +11,10 @@ import (
 	"github.com/cristiano/lan-video-player/internal/safefs"
 )
 
-const AppVersion = "0.1.0"
+const (
+	AppVersion = "0.1.0"
+	appName    = "lan-video-player"
+)
 
 // multiStringFlag allows repeating --media on the command line.
 type multiStringFlag []string
@@ -45,33 +48,22 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (*Config
 	if getenv == nil {
 		getenv = os.Getenv
 	}
-	fs := flag.NewFlagSet("lan-video-player", flag.ContinueOnError)
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
 	var mediaFlags multiStringFlag
 	fs.Var(&mediaFlags, "media", "Caminho de pasta raiz de mídia (somente-leitura). Pode ser repetido.")
 
-	defaultAddr := strings.TrimSpace(getenv("LVP_ADDR"))
-	if defaultAddr == "" {
-		defaultAddr = "0.0.0.0:8080"
-	}
-
-	defaultBrowseBase := strings.TrimSpace(getenv("LVP_BROWSE_BASE"))
-	browseBaseExplicit := defaultBrowseBase != ""
+	defaultAddr := envOrDefault(getenv, "LVP_ADDR", "0.0.0.0:8080")
+	envBrowseBase := strings.TrimSpace(getenv("LVP_BROWSE_BASE"))
+	browseBaseExplicit := envBrowseBase != ""
+	defaultBrowseBase := envBrowseBase
 	if defaultBrowseBase == "" {
 		defaultBrowseBase = detectDefaultBrowseBase()
 	}
 
-	defaultConfigFile := strings.TrimSpace(getenv("LVP_CONFIG_FILE"))
-	if defaultConfigFile == "" {
-		defaultConfigFile = detectDefaultConfigFile()
-	}
-
-	defaultCacheDir := strings.TrimSpace(getenv("LVP_CACHE_DIR"))
-	if defaultCacheDir == "" {
-		defaultCacheDir = filepath.Join(os.TempDir(), "lan-video-player-thumbs")
-	}
-
+	defaultConfigFile := envOrDefault(getenv, "LVP_CONFIG_FILE", detectDefaultConfigFile())
+	defaultCacheDir := envOrDefault(getenv, "LVP_CACHE_DIR", filepath.Join(os.TempDir(), "lan-video-player-thumbs"))
 	defaultNoThumbs := parseBoolEnv(getenv("LVP_NO_THUMBS"))
 
 	addr := fs.String("addr", defaultAddr, "Endereço e porta HTTP de escuta na LAN (ex.: 0.0.0.0:8080)")
@@ -84,59 +76,24 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (*Config
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
+	if *showVersion {
+		return &Config{ShowVersion: true}, nil
+	}
 
-	// Track if --browse-base was explicitly passed via CLI flag
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "browse-base" {
 			browseBaseExplicit = true
 		}
 	})
 
-	if *showVersion {
-		return &Config{ShowVersion: true}, nil
+	validatedMedia, err := resolveAndValidateMediaDirs(mediaFlags, getenv("LVP_MEDIA_DIRS"))
+	if err != nil {
+		return nil, err
 	}
 
-	// Merge CLI --media flags with LVP_MEDIA_DIRS when no CLI flags are provided
-	mediaDirs := make([]string, 0, len(mediaFlags))
-	mediaDirs = append(mediaDirs, mediaFlags...)
-	if len(mediaDirs) == 0 {
-		envMedia := strings.TrimSpace(getenv("LVP_MEDIA_DIRS"))
-		if envMedia != "" {
-			for _, part := range splitPathList(envMedia) {
-				if part != "" {
-					mediaDirs = append(mediaDirs, part)
-				}
-			}
-		}
-	}
-
-	// Validate each configured media directory strictly (FR-002)
-	validatedMedia := make([]string, 0, len(mediaDirs))
-	for _, dir := range mediaDirs {
-		root, err := safefs.NewRoot(dir)
-		if err != nil {
-			return nil, fmt.Errorf("pasta de mídia inválida %q: %w", dir, err)
-		}
-		validatedMedia = append(validatedMedia, root.CanonicalPath())
-	}
-
-	// Validate browseBase directory
-	resolvedBrowseBase := strings.TrimSpace(*browseBase)
-	if resolvedBrowseBase != "" {
-		bRoot, err := safefs.NewRoot(resolvedBrowseBase)
-		if err != nil {
-			if browseBaseExplicit {
-				return nil, fmt.Errorf("diretório-base (--browse-base) inválido %q: %w", resolvedBrowseBase, err)
-			}
-			// Fallback to current working directory if implicit default was unavailable
-			if cwdRoot, cwdErr := safefs.NewRoot("."); cwdErr == nil {
-				resolvedBrowseBase = cwdRoot.CanonicalPath()
-			} else {
-				resolvedBrowseBase = ""
-			}
-		} else {
-			resolvedBrowseBase = bRoot.CanonicalPath()
-		}
+	resolvedBrowseBase, err := resolveAndValidateBrowseBase(*browseBase, browseBaseExplicit)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Config{
@@ -148,6 +105,48 @@ func Parse(args []string, getenv func(string) string, stderr io.Writer) (*Config
 		NoThumbs:    *noThumbs,
 		ShowVersion: false,
 	}, nil
+}
+
+func envOrDefault(getenv func(string) string, key, fallback string) string {
+	if val := strings.TrimSpace(getenv(key)); val != "" {
+		return val
+	}
+	return fallback
+}
+
+func resolveAndValidateMediaDirs(cliMedia []string, envMediaRaw string) ([]string, error) {
+	mediaDirs := append([]string{}, cliMedia...)
+	if len(mediaDirs) == 0 && strings.TrimSpace(envMediaRaw) != "" {
+		mediaDirs = append(mediaDirs, splitPathList(envMediaRaw)...)
+	}
+
+	validated := make([]string, 0, len(mediaDirs))
+	for _, dir := range mediaDirs {
+		root, err := safefs.NewRoot(dir)
+		if err != nil {
+			return nil, fmt.Errorf("pasta de mídia inválida %q: %w", dir, err)
+		}
+		validated = append(validated, root.CanonicalPath())
+	}
+	return validated, nil
+}
+
+func resolveAndValidateBrowseBase(rawBrowseBase string, explicit bool) (string, error) {
+	trimmed := strings.TrimSpace(rawBrowseBase)
+	if trimmed == "" {
+		return "", nil
+	}
+	bRoot, err := safefs.NewRoot(trimmed)
+	if err == nil {
+		return bRoot.CanonicalPath(), nil
+	}
+	if explicit {
+		return "", fmt.Errorf("diretório-base (--browse-base) inválido %q: %w", trimmed, err)
+	}
+	if cwdRoot, cwdErr := safefs.NewRoot("."); cwdErr == nil {
+		return cwdRoot.CanonicalPath(), nil
+	}
+	return "", nil
 }
 
 func detectDefaultBrowseBase() string {
@@ -164,9 +163,9 @@ func detectDefaultBrowseBase() string {
 
 func detectDefaultConfigFile() string {
 	if cfgDir, err := os.UserConfigDir(); err == nil && strings.TrimSpace(cfgDir) != "" {
-		return filepath.Join(cfgDir, "lan-video-player", "library.json")
+		return filepath.Join(cfgDir, appName, "library.json")
 	}
-	return filepath.Join(os.TempDir(), "lan-video-player", "library.json")
+	return filepath.Join(os.TempDir(), appName, "library.json")
 }
 
 func parseBoolEnv(v string) bool {

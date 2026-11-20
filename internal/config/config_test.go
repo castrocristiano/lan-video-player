@@ -64,6 +64,21 @@ func TestParseValidAndInvalidMediaDirs(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected startup failure when --media points to a regular file")
 	}
+
+	// Test environment variable configuration (LVP_MEDIA_DIRS, LVP_NO_THUMBS, --version)
+	envMap := map[string]string{
+		"LVP_MEDIA_DIRS":  moviesDir + string(os.PathListSeparator) + seriesDir,
+		"LVP_BROWSE_BASE": tmp,
+		"LVP_NO_THUMBS":   "true",
+	}
+	envCfg, err := Parse([]string{}, func(k string) string { return envMap[k] }, &stderr)
+	if err != nil || len(envCfg.MediaDirs) != 2 || !envCfg.NoThumbs {
+		t.Fatalf("env Parse failed: err=%v cfg=%+v", err, envCfg)
+	}
+	verCfg, err := Parse([]string{"--version"}, nil, &stderr)
+	if err != nil || !verCfg.ShowVersion {
+		t.Fatalf("version Parse failed: err=%v", err)
+	}
 }
 
 func TestStoreAtomicLoadAndSave(t *testing.T) {

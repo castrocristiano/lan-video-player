@@ -79,32 +79,16 @@ func IsHiddenName(name string) bool {
 // and symlinks that resolve outside r.canonicalPath. It returns the canonical target path and
 // the normalized slash-separated relative path inside the root.
 func (r *Root) Resolve(relPath string) (targetReal string, normalizedRel string, err error) {
-	if r == nil || r.canonicalPath == "" {
-		return "", "", ErrForbiddenPath
-	}
-	if strings.ContainsRune(relPath, '\x00') {
+	if r == nil || r.canonicalPath == "" || strings.ContainsRune(relPath, '\x00') {
 		return "", "", ErrForbiddenPath
 	}
 
-	// Normalize backslashes to forward slashes for uniform inspection
-	slashPath := strings.ReplaceAll(strings.TrimSpace(relPath), "\\", "/")
-	slashPath = strings.TrimPrefix(slashPath, "/")
-
-	if slashPath == "" || slashPath == "." {
+	cleanSegments, err := parseSafeRelativeSegments(relPath)
+	if err != nil {
+		return "", "", err
+	}
+	if len(cleanSegments) == 0 {
 		return r.canonicalPath, "", nil
-	}
-
-	// Inspect raw segments for traversal ("..") or hidden names (".foo")
-	rawSegments := strings.Split(slashPath, "/")
-	cleanSegments := make([]string, 0, len(rawSegments))
-	for _, seg := range rawSegments {
-		if seg == "" || seg == "." {
-			continue
-		}
-		if seg == ".." || strings.HasPrefix(seg, ".") {
-			return "", "", ErrForbiddenPath
-		}
-		cleanSegments = append(cleanSegments, seg)
 	}
 
 	joinedCandidate := filepath.Join(append([]string{r.canonicalPath}, cleanSegments...)...)
@@ -112,29 +96,53 @@ func (r *Root) Resolve(relPath string) (targetReal string, normalizedRel string,
 		return "", "", ErrForbiddenPath
 	}
 
-	// Evaluate symlinks on the target path to block symlink escape outside root
+	evalTarget, err := r.evalCandidateSymlinks(joinedCandidate)
+	if err != nil {
+		return "", "", err
+	}
+
+	return evalTarget, strings.Join(cleanSegments, "/"), nil
+}
+
+func parseSafeRelativeSegments(relPath string) ([]string, error) {
+	slashPath := strings.ReplaceAll(strings.TrimSpace(relPath), "\\", "/")
+	slashPath = strings.TrimPrefix(slashPath, "/")
+	if slashPath == "" || slashPath == "." {
+		return nil, nil
+	}
+
+	rawSegments := strings.Split(slashPath, "/")
+	cleanSegments := make([]string, 0, len(rawSegments))
+	for _, seg := range rawSegments {
+		if seg == "" || seg == "." {
+			continue
+		}
+		if seg == ".." || strings.HasPrefix(seg, ".") {
+			return nil, ErrForbiddenPath
+		}
+		cleanSegments = append(cleanSegments, seg)
+	}
+	return cleanSegments, nil
+}
+
+func (r *Root) evalCandidateSymlinks(joinedCandidate string) (string, error) {
 	evalTarget, err := filepath.EvalSymlinks(joinedCandidate)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			// Wait: what if an intermediate symlink escapes before missing leaf?
-			// Check parent directory to differentiate forbidden escape vs not found.
 			parentDir := filepath.Dir(joinedCandidate)
-			if evalParent, pErr := filepath.EvalSymlinks(parentDir); pErr == nil {
-				if !isWithinBase(r.canonicalPath, evalParent) {
-					return "", "", ErrForbiddenPath
-				}
+			if evalParent, pErr := filepath.EvalSymlinks(parentDir); pErr == nil && !isWithinBase(r.canonicalPath, evalParent) {
+				return "", ErrForbiddenPath
 			}
-			return "", "", ErrNotFound
+			return "", ErrNotFound
 		}
-		return "", "", ErrForbiddenPath
+		return "", ErrForbiddenPath
 	}
 
 	evalTarget = filepath.Clean(evalTarget)
 	if !isWithinBase(r.canonicalPath, evalTarget) {
-		return "", "", ErrForbiddenPath
+		return "", ErrForbiddenPath
 	}
-
-	return evalTarget, strings.Join(cleanSegments, "/"), nil
+	return evalTarget, nil
 }
 
 // RelFromRoot computes the normalized slash-separated relative path of targetCanonical inside r,

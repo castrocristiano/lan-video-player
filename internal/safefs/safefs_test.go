@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-func TestRootResolveAndTraversalProtection(t *testing.T) {
+func setupSafeFSTestRoot(t *testing.T) (*Root, string, string) {
+	t.Helper()
 	tmp := t.TempDir()
 	mediaDir := filepath.Join(tmp, "media")
 	outsideDir := filepath.Join(tmp, "outside")
@@ -22,8 +23,7 @@ func TestRootResolveAndTraversalProtection(t *testing.T) {
 	if err := os.WriteFile(validVideo, []byte("fake-mp4-data"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	hiddenFile := filepath.Join(mediaDir, ".secret.mp4")
-	if err := os.WriteFile(hiddenFile, []byte("hidden"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(mediaDir, ".secret.mp4"), []byte("hidden"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	outsideSecret := filepath.Join(outsideDir, "passwd.txt")
@@ -31,38 +31,38 @@ func TestRootResolveAndTraversalProtection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create a symlink inside mediaDir pointing outside to outsideSecret
-	escapeLink := filepath.Join(mediaDir, "Movies", "escape.mp4")
-	if err := os.Symlink(outsideSecret, escapeLink); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a symlink inside mediaDir pointing to a valid file inside mediaDir
-	internalLink := filepath.Join(mediaDir, "Movies", "internal_link.mp4")
-	if err := os.Symlink(validVideo, internalLink); err != nil {
-		t.Fatal(err)
-	}
+	_ = os.Symlink(outsideSecret, filepath.Join(mediaDir, "Movies", "escape.mp4"))
+	_ = os.Symlink(validVideo, filepath.Join(mediaDir, "Movies", "internal_link.mp4"))
 
 	root, err := NewRoot(mediaDir)
 	if err != nil {
 		t.Fatalf("NewRoot failed: %v", err)
 	}
+	return root, validVideo, outsideSecret
+}
 
-	// 1. Valid path
+func TestRootResolveAndTraversal(t *testing.T) {
+	root, _, _ := setupSafeFSTestRoot(t)
+
 	_, normRel, err := root.Resolve("Movies/clip.mp4")
-	if err != nil {
-		t.Fatalf("expected valid path to resolve, got: %v", err)
+	if err != nil || normRel != "Movies/clip.mp4" {
+		t.Fatalf("Resolve valid path failed: err=%v norm=%q", err, normRel)
 	}
-	if normRel != "Movies/clip.mp4" {
-		t.Fatalf("expected normalized rel 'Movies/clip.mp4', got %q", normRel)
+	if _, normRoot, err := root.Resolve(""); err != nil || normRoot != "" {
+		t.Fatalf("Resolve root failed: err=%v norm=%q", err, normRoot)
 	}
-
-	// 2. Internal symlink inside root is allowed
 	if _, _, err := root.Resolve("Movies/internal_link.mp4"); err != nil {
-		t.Fatalf("expected internal symlink to resolve, got: %v", err)
+		t.Fatalf("Resolve internal symlink failed: %v", err)
+	}
+	if _, _, err := root.Resolve("Movies/missing.mp4"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 
-	// 3. Traversal attempts must return ErrForbiddenPath
+	var nilRoot *Root
+	if _, _, err := nilRoot.Resolve("a"); !errors.Is(err, ErrForbiddenPath) {
+		t.Errorf("expected ErrForbiddenPath on nil root")
+	}
+
 	traversalCases := []string{
 		"..",
 		"../outside/passwd.txt",
@@ -78,24 +78,24 @@ func TestRootResolveAndTraversalProtection(t *testing.T) {
 			t.Errorf("Resolve(%q): expected ErrForbiddenPath, got %v", tc, err)
 		}
 	}
+}
 
-	// 4. Non-existent path inside root must return ErrNotFound
-	if _, _, err := root.Resolve("Movies/missing.mp4"); !errors.Is(err, ErrNotFound) {
-		t.Errorf("expected ErrNotFound for missing file, got %v", err)
-	}
+func TestRootReadDirAndReadOnly(t *testing.T) {
+	root, validVideo, outsideSecret := setupSafeFSTestRoot(t)
 
-	// 5. ReadDir filters out hidden files and external symlinks
 	entries, _, err := root.ReadDir("Movies")
 	if err != nil {
 		t.Fatalf("ReadDir failed: %v", err)
 	}
 	for _, e := range entries {
 		if e.Name() == "escape.mp4" {
-			t.Errorf("ReadDir leaked external symlink escape.mp4")
+			t.Errorf("ReadDir leaked external symlink")
 		}
 	}
+	if _, _, err := root.ReadDir("Movies/clip.mp4"); !errors.Is(err, ErrNotDirectory) {
+		t.Errorf("expected ErrNotDirectory on ReadDir of file, got %v", err)
+	}
 
-	// 6. OpenReadOnly enforces read-only file descriptor (Write must fail)
 	f, info, _, err := root.OpenReadOnly("Movies/clip.mp4")
 	if err != nil {
 		t.Fatalf("OpenReadOnly failed: %v", err)
@@ -105,6 +105,35 @@ func TestRootResolveAndTraversalProtection(t *testing.T) {
 		t.Errorf("unexpected file size: %d", info.Size())
 	}
 	if _, writeErr := f.Write([]byte("mutate")); writeErr == nil {
-		t.Errorf("expected write to read-only file descriptor to fail, but it succeeded")
+		t.Errorf("expected write to read-only file descriptor to fail")
+	}
+
+	if rel, ok := root.RelFromRoot(validVideo); !ok || rel != "Movies/clip.mp4" {
+		t.Errorf("RelFromRoot validVideo failed: rel=%q ok=%v", rel, ok)
+	}
+	if rel, ok := root.RelFromRoot(root.CanonicalPath()); !ok || rel != "" {
+		t.Errorf("RelFromRoot root failed: rel=%q ok=%v", rel, ok)
+	}
+	if _, ok := root.RelFromRoot(outsideSecret); ok {
+		t.Errorf("RelFromRoot should fail for outside path")
+	}
+	if info, _, err := root.Stat("Movies/clip.mp4"); err != nil || info.IsDir() {
+		t.Errorf("Stat validVideo failed: %v", err)
+	}
+}
+
+func TestNewRootValidationEdges(t *testing.T) {
+	_, validVideo, _ := setupSafeFSTestRoot(t)
+	if _, err := NewRoot(""); err == nil {
+		t.Errorf("expected error for empty NewRoot")
+	}
+	if _, err := NewRoot("/nonexistent/safefs/test/dir"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+	if _, err := NewRoot(validVideo); !errors.Is(err, ErrNotDirectory) {
+		t.Errorf("expected ErrNotDirectory, got %v", err)
+	}
+	if IsHiddenName(".") || !IsHiddenName(".env") {
+		t.Errorf("unexpected IsHiddenName result")
 	}
 }

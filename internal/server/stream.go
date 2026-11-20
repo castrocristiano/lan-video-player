@@ -16,7 +16,7 @@ import (
 // in memory via ffmpeg when available, without writing to the media directories.
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", errMethodNotAllowed)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set(headerContentType, mimeType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Cache-Control", "no-cache")
 
@@ -74,7 +74,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) streamTranscodedMP4(w http.ResponseWriter, r *http.Request, targetRealPath string, startSecStr string) {
-	w.Header().Set("Content-Type", "video/mp4")
+	w.Header().Set(headerContentType, "video/mp4")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Transcoded-Stream", "ffmpeg-fmp4")
 

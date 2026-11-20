@@ -1,0 +1,9 @@
+# Default owner for all files in the repository
+* @castrocristiano
+
+# Critical security, CI/CD, and governance paths
+/.github/ @castrocristiano
+/.specify/ @castrocristiano
+/internal/safefs/ @castrocristiano
+/Containerfile @castrocristiano
+/compose.yaml @castrocristiano
