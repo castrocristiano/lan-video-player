@@ -16,9 +16,9 @@ Todos os diretórios de mídia configurados pelo usuário DEVEM ser acessados es
 
 ### III. Binário Único e Web UI Leve
 
-O servidor DEVE ser distribuído como um binário único autossuficiente (implementado em Go ou Rust, a ser definido no plano arquitetural), com os assets estáticos da Web UI embutidos no executável. A aplicação NÃO DEVE exigir runtimes pesados, bancos de dados externos ou processos auxiliares obrigatórios para o funcionamento básico, mantendo baixo consumo de memória/CPU e interface leve compatível com navegadores modernos na LAN.
+O servidor DEVE ser distribuído como um binário único autossuficiente (implementado em Go ou Rust, a ser definido no plano arquitetural), com os assets estáticos da Web UI embutidos no executável, apto a rodar tanto diretamente quanto dentro de uma imagem de container minimalista. A aplicação NÃO DEVE exigir runtimes pesados, bancos de dados externos ou processos auxiliares obrigatórios para o funcionamento básico, mantendo baixo consumo de memória/CPU e interface leve compatível com navegadores modernos na LAN.
 
-**Justificativa**: Facilita instalação imediata em qualquer máquina da rede (incluindo hardware modesto como Raspberry Pi ou servidores domésticos) sem atrito operacional.
+**Justificativa**: Facilita execução leve em container ou host direto em qualquer máquina da rede (incluindo hardware modesto como Raspberry Pi ou servidores domésticos) sem atrito operacional.
 
 ### IV. Simplicidade e YAGNI
 
@@ -35,6 +35,7 @@ O projeto é licenciado sob a GNU Affero General Public License v3.0 (`LICENSE`)
 ## Restrições Técnicas e de Distribuição
 
 - **Stack alvo**: Binário único compilado em **Go** ou **Rust** (definição final documentada no `/speckit-plan` da primeira funcionalidade) acompanhado de Web UI leve embutida e livre de dependências de rede externa.
+- **Execução em container (`docker-compose` com Podman)**: O projeto DEVE fornecer empacotamento em container minimalista (OCI/Docker) e arquivo `compose` compatível com **`podman compose` / `podman-compose`** (e `docker compose`). A configuração DEVE funcionar em **Podman rootless**, executar o processo como usuário não-root, montar os diretórios de mídia do host em modo somente-leitura (com suporte documentado a rótulos SELinux como `:ro,Z` ou `:ro,z` no Linux/Fedora) e expor a porta configurável para a rede local.
 - **Escopo de rede**: A aplicação DEVE atender dispositivos na LAN via HTTP padrão (navegadores desktop, mobile e TVs compatíveis), sem exigir serviços de descoberta em nuvem ou túneis externos.
 - **Portabilidade**: O código central DEVE priorizar portabilidade entre Linux e demais sistemas operacionais suportados pela linguagem escolhida, evitando acoplamento desnecessário a APIs exclusivas de uma única plataforma.
 - **Conformidade de licença**: O arquivo `LICENSE` (GNU AGPL v3.0) DEVE permanecer na raiz do repositório e a interface/documentação DEVE respeitar a disponibilização do código-fonte correspondente prevista na Seção 13 da licença.
@@ -58,4 +59,4 @@ O projeto é licenciado sob a GNU Affero General Public License v3.0 (`LICENSE`)
   - **PATCH**: esclarecimentos, ajustes de redação ou correções sem mudança semântica.
 - **Revisão de conformidade**: Todo plano técnico (`/speckit-plan`) e revisão de código DEVE validar aderência aos cinco princípios fundamentais e aos portões de qualidade. Qualquer desvio ou aumento de complexidade DEVE ser justificado por escrito no plano antes da implementação.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-19 | **Last Amended**: 2026-11-19
+**Version**: 1.1.0 | **Ratified**: 2026-11-19 | **Last Amended**: 2026-11-19
