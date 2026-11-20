@@ -19,6 +19,11 @@
     // Player state
     currentVideoIndex: -1,
     currentVideo: null,
+    triedTranscodeFallback: false,
+    isTranscodedStream: false,
+    transcodeBaseOffset: 0,
+    totalDuration: 0,
+    isDraggingSeek: false,
     autoplayTimer: null,
     autoplayRemaining: 5,
     lastProgressSaveAt: 0,
@@ -79,6 +84,15 @@
     subtitleSelect: document.getElementById("subtitleSelect"),
     audioTrackSelect: document.getElementById("audioTrackSelect"),
     autoplayNextCheckbox: document.getElementById("autoplayNextCheckbox"),
+    playPauseBtn: document.getElementById("playPauseBtn"),
+    seekBackBtn: document.getElementById("seekBackBtn"),
+    seekFwdBtn: document.getElementById("seekFwdBtn"),
+    currentTimeLabel: document.getElementById("currentTimeLabel"),
+    seekSlider: document.getElementById("seekSlider"),
+    totalDurationLabel: document.getElementById("totalDurationLabel"),
+    muteBtn: document.getElementById("muteBtn"),
+    volumeSlider: document.getElementById("volumeSlider"),
+    fullscreenBtn: document.getElementById("fullscreenBtn"),
 
     // Library Folder Picker Modal
     libraryModal: document.getElementById("libraryModal"),
@@ -573,11 +587,81 @@
 
   // --- Video Player Modal (US2 & US4) ---
 
-  function openPlayer(index) {
+  function getEffectiveCurrentTime() {
+    const v = dom.videoElement;
+    return state.transcodeBaseOffset + (Number(v.currentTime) || 0);
+  }
+
+  function getEffectiveDuration() {
+    const v = dom.videoElement;
+    if (state.totalDuration > 0 && isFinite(state.totalDuration)) {
+      return state.totalDuration;
+    }
+    if (v.duration > 0 && isFinite(v.duration)) {
+      return v.duration;
+    }
+    return 0;
+  }
+
+  function updateSeekBarUI() {
+    const cur = getEffectiveCurrentTime();
+    const dur = getEffectiveDuration();
+    dom.currentTimeLabel.textContent = formatDuration(cur);
+    dom.totalDurationLabel.textContent = dur > 0 ? formatDuration(dur) : "--:--";
+    if (!state.isDraggingSeek) {
+      dom.seekSlider.max = dur > 0 ? String(Math.floor(dur)) : "100";
+      dom.seekSlider.value = dur > 0 ? String(Math.min(Math.floor(dur), Math.floor(cur))) : "0";
+      dom.seekSlider.disabled = dur <= 0;
+    }
+    dom.playPauseBtn.innerHTML = dom.videoElement.paused ? "&#9654;" : "&#10074;&#10074;";
+    dom.muteBtn.innerHTML = dom.videoElement.muted || dom.videoElement.volume === 0 ? "&#128263;" : "&#128266;";
+    dom.volumeSlider.value = dom.videoElement.muted ? "0" : String(dom.videoElement.volume);
+  }
+
+  function seekToSeconds(targetSec) {
+    if (!state.currentVideo) return;
+    const dur = getEffectiveDuration();
+    const clamped = dur > 0 ? Math.max(0, Math.min(dur - 1, targetSec)) : Math.max(0, targetSec);
+    const v = dom.videoElement;
+
+    if (!state.isTranscodedStream && isFinite(v.duration) && v.duration > 0) {
+      state.transcodeBaseOffset = 0;
+      v.currentTime = clamped;
+      updateSeekBarUI();
+      return;
+    }
+
+    // For transcoded streams (.avi, .rmvb, etc.), request server ffmpeg seek via ?transcode=1&start=<sec>
+    state.isTranscodedStream = true;
+    state.transcodeBaseOffset = Math.floor(clamped);
+    const sep = state.currentVideo.streamUrl.includes("?") ? "&" : "?";
+    v.src = `${state.currentVideo.streamUrl}${sep}transcode=1&start=${state.transcodeBaseOffset}`;
+    v.load();
+    v.playbackRate = state.prefs.playbackRate;
+    updateSeekBarUI();
+    const playPromise = v.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {});
+    }
+  }
+
+  async function openPlayer(index) {
     if (index < 0 || index >= state.videos.length) return;
     cancelAutoplayCountdown();
 
     const video = state.videos[index];
+    state.currentVideo = null;
+    state.triedTranscodeFallback = false;
+    state.isTranscodedStream = false;
+    state.transcodeBaseOffset = 0;
+    state.totalDuration = 0;
+    state.isDraggingSeek = false;
+
+    const v = dom.videoElement;
+    v.pause();
+    v.removeAttribute("src");
+    v.innerHTML = "";
+
     state.currentVideoIndex = index;
     state.currentVideo = video;
 
@@ -590,41 +674,78 @@
     dom.nextVideoBtn.disabled = index >= state.videos.length - 1;
     dom.playerErrorBanner.classList.add("hidden");
     dom.resumeBanner.classList.add("hidden");
+    updateSeekBarUI();
 
-    const v = dom.videoElement;
-    v.pause();
-    v.removeAttribute("src");
-    v.innerHTML = "";
+    dom.playerModal.classList.remove("hidden");
+
+    // Probe video duration & transcode requirement from server
+    const probeUrl = video.streamUrl.replace("/api/v1/stream/", "/api/v1/probe/");
+    try {
+      const probe = await apiGet(probeUrl);
+      if (state.currentVideo !== video) return;
+      if (probe && typeof probe.durationSeconds === "number" && probe.durationSeconds > 0) {
+        state.totalDuration = probe.durationSeconds;
+      }
+      if (probe && probe.requiresTranscode) {
+        state.isTranscodedStream = true;
+        state.triedTranscodeFallback = true;
+      }
+    } catch (_) {
+      // Fallback to browser metadata if probe fails
+    }
 
     // Attach external local subtitle tracks (FR-014)
     populateSubtitles(video.subtitles || []);
 
-    v.src = video.streamUrl;
+    const savedProgress = getPlaybackProgress(video.id);
+    let initialStartSec = 0;
+    const knownDur = getEffectiveDuration();
+    if (
+      savedProgress &&
+      !savedProgress.completed &&
+      savedProgress.currentTime > 3 &&
+      (knownDur === 0 || knownDur > savedProgress.currentTime + 3)
+    ) {
+      initialStartSec = Math.floor(savedProgress.currentTime);
+    }
+
+    if (state.isTranscodedStream && initialStartSec > 0) {
+      state.transcodeBaseOffset = initialStartSec;
+      v.src = `${video.streamUrl}?transcode=1&start=${initialStartSec}`;
+      dom.resumeBannerText.textContent = `Retomado automaticamente de ${formatDuration(initialStartSec)}.`;
+      dom.resumeBanner.classList.remove("hidden");
+    } else if (state.isTranscodedStream) {
+      v.src = `${video.streamUrl}?transcode=1`;
+    } else {
+      v.src = video.streamUrl;
+    }
+
     v.volume = state.prefs.volume;
     v.muted = state.prefs.muted;
     v.playbackRate = state.prefs.playbackRate;
     dom.speedSelect.value = String(state.prefs.playbackRate);
     dom.autoplayNextCheckbox.checked = Boolean(state.prefs.autoPlayNext);
+    updateSeekBarUI();
 
-    dom.playerModal.classList.remove("hidden");
-
-    const savedProgress = getPlaybackProgress(video.id);
     const onLoadedMeta = () => {
       v.removeEventListener("loadedmetadata", onLoadedMeta);
       v.playbackRate = state.prefs.playbackRate;
+      if (v.duration > 0 && isFinite(v.duration) && state.totalDuration <= 0) {
+        state.totalDuration = v.duration;
+      }
       populateAudioTracks();
 
       if (
-        savedProgress &&
-        !savedProgress.completed &&
-        savedProgress.currentTime > 3 &&
-        v.duration > savedProgress.currentTime + 3
+        !state.isTranscodedStream &&
+        initialStartSec > 0 &&
+        v.duration > initialStartSec + 3
       ) {
-        v.currentTime = savedProgress.currentTime;
-        dom.resumeBannerText.textContent = `Retomado automaticamente de ${formatDuration(savedProgress.currentTime)}.`;
+        v.currentTime = initialStartSec;
+        dom.resumeBannerText.textContent = `Retomado automaticamente de ${formatDuration(initialStartSec)}.`;
         dom.resumeBanner.classList.remove("hidden");
       }
 
+      updateSeekBarUI();
       const playPromise = v.play();
       if (playPromise && typeof playPromise.catch === "function") {
         playPromise.catch(() => {});
@@ -638,15 +759,19 @@
   function closePlayer() {
     cancelAutoplayCountdown();
     const v = dom.videoElement;
-    if (state.currentVideo && v.duration > 0 && !v.ended) {
-      savePlaybackProgress(state.currentVideo.id, v.currentTime, v.duration, false);
+    const dur = getEffectiveDuration();
+    const cur = getEffectiveCurrentTime();
+    if (state.currentVideo && dur > 0 && !v.ended) {
+      savePlaybackProgress(state.currentVideo.id, cur, dur, false);
     }
+    state.currentVideo = null;
+    state.currentVideoIndex = -1;
+    state.transcodeBaseOffset = 0;
+    state.totalDuration = 0;
     v.pause();
     v.removeAttribute("src");
     v.innerHTML = "";
     v.load();
-    state.currentVideo = null;
-    state.currentVideoIndex = -1;
     dom.playerModal.classList.add("hidden");
     // Refresh cards to show updated progress bars
     renderCatalog();
@@ -1034,9 +1159,69 @@
     });
 
     dom.restartFromBeginningBtn.addEventListener("click", () => {
-      dom.videoElement.currentTime = 0;
       dom.resumeBanner.classList.add("hidden");
-      dom.videoElement.play().catch(() => {});
+      seekToSeconds(0);
+    });
+
+    dom.playPauseBtn.addEventListener("click", () => {
+      if (dom.videoElement.paused) {
+        dom.videoElement.play().catch(() => {});
+      } else {
+        dom.videoElement.pause();
+      }
+    });
+
+    dom.seekBackBtn.addEventListener("click", () => {
+      seekToSeconds(getEffectiveCurrentTime() - 10);
+    });
+
+    dom.seekFwdBtn.addEventListener("click", () => {
+      seekToSeconds(getEffectiveCurrentTime() + 10);
+    });
+
+    dom.seekSlider.addEventListener("input", () => {
+      state.isDraggingSeek = true;
+      dom.currentTimeLabel.textContent = formatDuration(Number(dom.seekSlider.value) || 0);
+    });
+
+    dom.seekSlider.addEventListener("change", () => {
+      const targetSec = Number(dom.seekSlider.value) || 0;
+      state.isDraggingSeek = false;
+      seekToSeconds(targetSec);
+    });
+
+    dom.fullscreenBtn.addEventListener("click", () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        dom.playerModal.querySelector(".player-dialog").requestFullscreen().catch(() => {
+          dom.videoElement.requestFullscreen().catch(() => {});
+        });
+      }
+    });
+
+    dom.muteBtn.addEventListener("click", () => {
+      dom.videoElement.muted = !dom.videoElement.muted;
+      updateSeekBarUI();
+    });
+
+    dom.volumeSlider.addEventListener("input", () => {
+      const vol = Number(dom.volumeSlider.value);
+      dom.videoElement.volume = Math.min(1, Math.max(0, vol));
+      dom.videoElement.muted = vol === 0;
+      updateSeekBarUI();
+    });
+
+    dom.videoElement.addEventListener("click", () => {
+      if (dom.videoElement.paused) {
+        dom.videoElement.play().catch(() => {});
+      } else {
+        dom.videoElement.pause();
+      }
+    });
+
+    dom.videoElement.addEventListener("dblclick", () => {
+      dom.fullscreenBtn.click();
     });
 
     dom.speedSelect.addEventListener("change", () => {
@@ -1075,18 +1260,26 @@
     dom.autoplayCancelBtn.addEventListener("click", cancelAutoplayCountdown);
 
     const v = dom.videoElement;
+    v.addEventListener("play", updateSeekBarUI);
     v.addEventListener("timeupdate", () => {
-      if (!state.currentVideo || !v.duration) return;
+      if (!state.currentVideo) return;
+      updateSeekBarUI();
+      const dur = getEffectiveDuration();
+      if (dur <= 0) return;
+      const cur = getEffectiveCurrentTime();
       const now = Date.now();
       if (now - state.lastProgressSaveAt >= 2000) {
         state.lastProgressSaveAt = now;
-        savePlaybackProgress(state.currentVideo.id, v.currentTime, v.duration, false);
+        savePlaybackProgress(state.currentVideo.id, cur, dur, false);
       }
     });
 
     v.addEventListener("pause", () => {
-      if (state.currentVideo && v.duration > 0 && !v.ended) {
-        savePlaybackProgress(state.currentVideo.id, v.currentTime, v.duration, false);
+      updateSeekBarUI();
+      const dur = getEffectiveDuration();
+      const cur = getEffectiveCurrentTime();
+      if (state.currentVideo && dur > 0 && !v.ended) {
+        savePlaybackProgress(state.currentVideo.id, cur, dur, false);
       }
     });
 
@@ -1094,23 +1287,35 @@
       state.prefs.volume = v.volume;
       state.prefs.muted = v.muted;
       savePreferences();
+      updateSeekBarUI();
     });
 
     v.addEventListener("ended", () => {
-      if (state.currentVideo && v.duration > 0) {
-        savePlaybackProgress(state.currentVideo.id, v.duration, v.duration, true);
+      const dur = getEffectiveDuration();
+      if (state.currentVideo && dur > 0) {
+        savePlaybackProgress(state.currentVideo.id, dur, dur, true);
       }
       startAutoplayCountdown();
     });
 
     v.addEventListener("error", () => {
       if (!state.currentVideo) return;
+      if (!state.triedTranscodeFallback) {
+        state.triedTranscodeFallback = true;
+        state.isTranscodedStream = true;
+        v.src = state.currentVideo.streamUrl + "?transcode=1";
+        v.load();
+        v.play().catch(() => {});
+        return;
+      }
       dom.playerErrorBanner.classList.remove("hidden");
     });
 
     window.addEventListener("pagehide", () => {
-      if (state.currentVideo && v.duration > 0 && !v.ended) {
-        savePlaybackProgress(state.currentVideo.id, v.currentTime, v.duration, false);
+      const dur = getEffectiveDuration();
+      const cur = getEffectiveCurrentTime();
+      if (state.currentVideo && dur > 0 && !v.ended) {
+        savePlaybackProgress(state.currentVideo.id, cur, dur, false);
       }
     });
 
@@ -1132,10 +1337,10 @@
           else v.pause();
         } else if (e.key === "ArrowRight") {
           e.preventDefault();
-          v.currentTime = Math.min(v.duration || 0, v.currentTime + 10);
+          seekToSeconds(getEffectiveCurrentTime() + 10);
         } else if (e.key === "ArrowLeft") {
           e.preventDefault();
-          v.currentTime = Math.max(0, v.currentTime - 10);
+          seekToSeconds(getEffectiveCurrentTime() - 10);
         } else if (e.key === "f" || e.key === "F") {
           e.preventDefault();
           if (document.fullscreenElement) document.exitFullscreen().catch(() => {});

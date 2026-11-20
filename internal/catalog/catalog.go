@@ -36,6 +36,26 @@ var supportedVideoExtensions = map[string]string{
 	".ogv":  "video/ogg",
 	".ogg":  "video/ogg",
 	".avi":  "video/x-msvideo",
+	".rmvb": "application/vnd.rn-realmedia-vbr",
+	".rm":   "application/vnd.rn-realmedia",
+	".wmv":  "video/x-ms-wmv",
+	".flv":  "video/x-flv",
+	".mpg":  "video/mpeg",
+	".mpeg": "video/mpeg",
+	".ts":   "video/mp2t",
+	".m2ts": "video/mp2t",
+}
+
+var legacyTranscodeExtensions = map[string]bool{
+	".avi":  true,
+	".rmvb": true,
+	".rm":   true,
+	".wmv":  true,
+	".flv":  true,
+	".mpg":  true,
+	".mpeg": true,
+	".ts":   true,
+	".m2ts": true,
 }
 
 // IsSupportedVideoFile returns the MIME type and true if filename has a supported video extension.
@@ -43,6 +63,13 @@ func IsSupportedVideoFile(filename string) (string, bool) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	mime, ok := supportedVideoExtensions[ext]
 	return mime, ok
+}
+
+// RequiresTranscodeByDefault reports whether a video container format (e.g. .avi, .rmvb, .wmv)
+// cannot be decoded natively by HTML5 browsers and should be transcoded on-the-fly when ffmpeg is available.
+func RequiresTranscodeByDefault(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	return legacyTranscodeExtensions[ext]
 }
 
 // MediaRoot matches data-model.md 1.1 MediaRoot.

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -61,11 +60,7 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 	}
 
 	// 2. Check optional ffmpeg extraction into ephemeral cacheDir outside media roots
-	if noThumbs || strings.TrimSpace(cacheDir) == "" {
-		return nil, "", ErrNoThumbnail
-	}
-	ffmpegPath, lookErr := exec.LookPath("ffmpeg")
-	if lookErr != nil {
+	if noThumbs || strings.TrimSpace(cacheDir) == "" || !HasFFmpeg() {
 		return nil, "", ErrNoThumbnail
 	}
 
@@ -82,7 +77,7 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 		return nil, "", ErrNoThumbnail
 	}
 
-	extractCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	extractCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
 	tmpFile, err := os.CreateTemp(cacheDir, ".thumb-*.jpg")
@@ -93,9 +88,8 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 	_ = tmpFile.Close()
 	defer os.Remove(tmpPath)
 
-	cmd := exec.CommandContext(
+	cmd, ok := NewFFmpegCommand(
 		extractCtx,
-		ffmpegPath,
 		"-hide_banner",
 		"-loglevel", "error",
 		"-ss", "00:00:02",
@@ -103,9 +97,13 @@ func (c *Catalog) ResolveThumbnail(ctx context.Context, rootID string, videoRelP
 		"-frames:v", "1",
 		"-vf", "scale=320:-1",
 		"-q:v", "5",
+		"-f", "image2",
 		"-y",
 		tmpPath,
 	)
+	if !ok {
+		return nil, "", ErrNoThumbnail
+	}
 	if err := cmd.Run(); err != nil {
 		return nil, "", ErrNoThumbnail
 	}

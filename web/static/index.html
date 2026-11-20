@@ -133,8 +133,8 @@
         <button type="button" id="errorBackToLibBtn" class="btn btn-secondary btn-sm">Voltar à Biblioteca</button>
       </div>
 
-      <div class="player-stage">
-        <video id="videoElement" controls preload="metadata" playsinline></video>
+      <div class="player-stage" id="playerStage">
+        <video id="videoElement" preload="metadata" playsinline></video>
 
         <!-- Autoplay Next Countdown Overlay (FR-013) -->
         <div id="autoplayOverlay" class="autoplay-overlay hidden">
@@ -147,6 +147,49 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Interactive Timeline & Seek Bar (Supports both direct Range and FFmpeg transcoded streams) -->
+      <div class="player-seekbar">
+        <button type="button" id="playPauseBtn" class="btn btn-primary btn-sm" title="Reproduzir / Pausar (Espaço)">
+          &#9654;
+        </button>
+        <button type="button" id="seekBackBtn" class="btn btn-secondary btn-sm" title="Retroceder 10 segundos (Seta Esquerda)">
+          &#8630; -10s
+        </button>
+        <button type="button" id="seekFwdBtn" class="btn btn-secondary btn-sm" title="Avançar 10 segundos (Seta Direita)">
+          +10s &#8631;
+        </button>
+        <span id="currentTimeLabel" class="seek-time-label">00:00</span>
+        <input
+          type="range"
+          id="seekSlider"
+          class="seek-slider"
+          min="0"
+          max="100"
+          step="1"
+          value="0"
+          aria-label="Barra de progresso do vídeo"
+        />
+        <span id="totalDurationLabel" class="seek-time-label">00:00</span>
+        <div class="volume-control">
+          <button type="button" id="muteBtn" class="btn btn-secondary btn-sm" title="Silenciar / Ativar som (M)">
+            &#128266;
+          </button>
+          <input
+            type="range"
+            id="volumeSlider"
+            class="volume-slider"
+            min="0"
+            max="1"
+            step="0.05"
+            value="1"
+            aria-label="Volume"
+          />
+        </div>
+        <button type="button" id="fullscreenBtn" class="btn btn-secondary btn-sm" title="Tela cheia (F)">
+          &#x26F6; Tela Cheia
+        </button>
       </div>
 
       <!-- Extended Player Controls Bar (Speed, Subtitles, Audio Track, Autoplay Next) -->

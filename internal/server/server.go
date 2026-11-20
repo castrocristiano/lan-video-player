@@ -54,6 +54,7 @@ func (s *Server) registerRoutes() error {
 	s.mux.HandleFunc("/api/v1/browse", s.handleBrowse)
 	s.mux.HandleFunc("/api/v1/search", s.handleSearch)
 	s.mux.HandleFunc("/api/v1/stream/", s.handleStream)
+	s.mux.HandleFunc("/api/v1/probe/", s.handleProbe)
 	s.mux.HandleFunc("/api/v1/subtitles/", s.handleSubtitles)
 	s.mux.HandleFunc("/api/v1/thumbnails/", s.handleThumbnails)
 	s.mux.HandleFunc("/LICENSE", s.handleLicense)
@@ -205,6 +206,25 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	sortBy := q.Get("sort")
 
 	res, err := s.cat.Search(query, rootID, sortBy)
+	if err != nil {
+		writeCatalogError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handleProbe handles GET /api/v1/probe/{rootId}/{path...} returning video duration and transcode info.
+func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "INVALID_REQUEST", "Método HTTP não suportado.")
+		return
+	}
+	rootID, relPath, ok := extractRootAndRelPath(r, "/api/v1/probe/")
+	if !ok || rootID == "" || relPath == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Caminho de vídeo inválido.")
+		return
+	}
+	res, err := s.cat.ProbeVideo(r.Context(), rootID, relPath)
 	if err != nil {
 		writeCatalogError(w, err)
 		return
