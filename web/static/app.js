@@ -979,6 +979,12 @@
     cancelPendingSeek();
     setLoadingSpinner(false);
     renderSubtitleOverlayText("");
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+    dom.playerDialog.classList.remove("is-fullscreen", "fs-controls-visible", "fs-idle");
+    dom.playerModal.classList.remove("is-fullscreen");
+    dom.fullscreenBtn.innerHTML = "&#x26F6; Tela Cheia";
     const v = dom.videoElement;
     const dur = getEffectiveDuration();
     const cur = getEffectiveCurrentTime();
@@ -1529,18 +1535,48 @@
       seekToSeconds(targetSec);
     });
 
+    function isPlayerFullscreen() {
+      return Boolean(
+        document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          dom.playerDialog.classList.contains("is-fullscreen")
+      );
+    }
+
+    function setFullscreenClasses(active) {
+      dom.playerDialog.classList.toggle("is-fullscreen", active);
+      dom.playerModal.classList.toggle("is-fullscreen", active);
+      dom.fullscreenBtn.innerHTML = active ? "&#x26F6; Sair Tela Cheia" : "&#x26F6; Tela Cheia";
+    }
+
     dom.fullscreenBtn.addEventListener("click", () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+      if (isPlayerFullscreen()) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+        setFullscreenClasses(false);
+        clearTimeout(state.fsHideTimer);
+        dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
       } else {
-        dom.playerDialog.requestFullscreen().catch(() => {
-          dom.videoElement.requestFullscreen().catch(() => {});
-        });
+        setFullscreenClasses(true);
+        const fsTarget = dom.playerModal || dom.playerDialog;
+        if (typeof fsTarget.requestFullscreen === "function") {
+          fsTarget.requestFullscreen().catch(() => {
+            if (typeof dom.playerDialog.requestFullscreen === "function") {
+              dom.playerDialog.requestFullscreen().catch(() => {});
+            }
+          });
+        } else if (typeof fsTarget.webkitRequestFullscreen === "function") {
+          fsTarget.webkitRequestFullscreen();
+        }
+        showFullscreenControlsTemporarily();
       }
     });
 
     function showFullscreenControlsTemporarily() {
-      if (!document.fullscreenElement) {
+      if (!isPlayerFullscreen()) {
         clearTimeout(state.fsHideTimer);
         dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
         return;
@@ -1555,7 +1591,7 @@
 
       if (!dom.videoElement.paused && !isHoveringControls) {
         state.fsHideTimer = setTimeout(() => {
-          if (document.fullscreenElement && !dom.videoElement.paused) {
+          if (isPlayerFullscreen() && !dom.videoElement.paused) {
             dom.playerDialog.classList.remove("fs-controls-visible");
             dom.playerDialog.classList.add("fs-idle");
           }
@@ -1566,22 +1602,25 @@
     dom.playerDialog.addEventListener("mousemove", showFullscreenControlsTemporarily);
     dom.playerDialog.addEventListener("touchstart", showFullscreenControlsTemporarily, { passive: true });
     dom.playerDialog.addEventListener("mouseleave", () => {
-      if (document.fullscreenElement && !dom.videoElement.paused) {
+      if (isPlayerFullscreen() && !dom.videoElement.paused) {
         clearTimeout(state.fsHideTimer);
         dom.playerDialog.classList.remove("fs-controls-visible");
         dom.playerDialog.classList.add("fs-idle");
       }
     });
-    document.addEventListener("fullscreenchange", () => {
-      if (document.fullscreenElement) {
-        dom.fullscreenBtn.innerHTML = "&#x26F6; Sair Tela Cheia";
+    const onFullscreenChange = () => {
+      const nativeFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      if (nativeFs) {
+        setFullscreenClasses(true);
         showFullscreenControlsTemporarily();
       } else {
-        dom.fullscreenBtn.innerHTML = "&#x26F6; Tela Cheia";
+        setFullscreenClasses(false);
         clearTimeout(state.fsHideTimer);
         dom.playerDialog.classList.remove("fs-controls-visible", "fs-idle");
       }
-    });
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
     dom.videoElement.addEventListener("pause", showFullscreenControlsTemporarily);
     dom.videoElement.addEventListener("play", showFullscreenControlsTemporarily);
 
@@ -1754,7 +1793,11 @@
   function handlePlayerKeydown(e) {
     if (e.key === "Escape") {
       e.preventDefault();
-      closePlayer();
+      if (dom.playerDialog.classList.contains("is-fullscreen")) {
+        dom.fullscreenBtn.click();
+      } else {
+        closePlayer();
+      }
       return;
     }
     const tag = document.activeElement?.tagName || "";
