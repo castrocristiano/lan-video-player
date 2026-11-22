@@ -590,6 +590,44 @@ select {
   text-overflow: ellipsis;
 }
 
+.continue-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.15rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--accent);
+}
+
+.continue-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.continue-badge {
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background-color: var(--accent);
+  color: #06131f;
+}
+
+.continue-title {
+  font-size: 0.92rem;
+}
+
+.continue-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 /* Empty State */
 .empty-state {
   display: flex;
@@ -737,6 +775,76 @@ select {
   height: 100%;
   max-height: 70vh;
   outline: none;
+}
+
+.player-spinner {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.spinner-ring {
+  width: 52px;
+  height: 52px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: lvp-spin 0.8s linear infinite;
+}
+
+@keyframes lvp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.subtitle-overlay {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 24px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 0.25s ease;
+}
+
+.subtitle-line {
+  display: inline-block;
+  max-width: 88%;
+  padding: 5px 14px;
+  margin-top: 4px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffffff;
+  font-size: calc(clamp(16px, 2.1vw, 26px) * var(--lvp-subtitle-scale, 1));
+  line-height: 1.38;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  white-space: pre-line;
+}
+
+.sub-sync-group,
+.sub-size-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.25rem;
+}
+
+.sub-sync-group .seek-time-label,
+.sub-size-group .seek-time-label {
+  min-width: 42px;
+  font-size: 0.8rem;
 }
 
 .autoplay-overlay {
@@ -911,6 +1019,16 @@ select {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
+}
+
+.player-dialog:fullscreen .subtitle-overlay {
+  position: fixed;
+  bottom: 112px;
+  z-index: 21;
+}
+
+.player-dialog:fullscreen.fs-idle .subtitle-overlay {
+  bottom: 36px;
 }
 
 .player-dialog:fullscreen .player-seekbar,

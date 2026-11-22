@@ -197,4 +197,21 @@ func TestCatalogSearchSubtitlesAndThumbnails(t *testing.T) {
 	if !RequiresTranscodeByDefault("a.avi") || RequiresTranscodeByDefault("a.mp4") {
 		t.Errorf("unexpected RequiresTranscodeByDefault")
 	}
+
+	// ANSI (Windows-1252) SRT conversion + short timestamp format
+	ansiSRT := []byte("1\r\n01:05,250 --> 01:08,500\r\nA\xe7\xe3o \x93r\xe1pida\x94 \x80\r\n")
+	vttANSI := string(ConvertSRTToWebVTT(ansiSRT))
+	if !strings.Contains(vttANSI, "01:05.250 --> 01:08.500") || !strings.Contains(vttANSI, "Ação “rápida” €") {
+		t.Errorf("unexpected ANSI SRT conversion: %q", vttANSI)
+	}
+
+	// Timestamp shifting (offset and delay)
+	shiftedBack := string(ShiftWebVTTTimestamps([]byte("WEBVTT\n\n00:00:10.000 --> 00:00:12.500\nHi\n"), -5.0))
+	if !strings.Contains(shiftedBack, "00:00:05.000 --> 00:00:07.500") {
+		t.Errorf("expected shifted back timestamp, got %q", shiftedBack)
+	}
+	shiftedClamped := string(ShiftWebVTTTimestamps([]byte("WEBVTT\n\n00:00:02.000 --> 00:00:03.000\nHi\n"), -10.0))
+	if !strings.Contains(shiftedClamped, "00:00:00.000 --> 00:00:00.100") {
+		t.Errorf("expected clamped timestamp, got %q", shiftedClamped)
+	}
 }
