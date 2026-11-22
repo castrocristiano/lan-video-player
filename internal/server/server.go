@@ -277,7 +277,6 @@ func (s *Server) handleSubtitles(w http.ResponseWriter, r *http.Request) {
 	if totalShift := delaySec - offsetSec; math.Abs(totalShift) >= 0.001 {
 		vttData = catalog.ShiftWebVTTTimestamps(vttData, totalShift)
 	}
-
 	w.Header().Set(headerContentType, "text/vtt; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)

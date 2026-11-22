@@ -1030,7 +1030,6 @@ select {
 .player-dialog:fullscreen.fs-idle .subtitle-overlay {
   bottom: 36px;
 }
-
 .player-dialog:fullscreen .player-seekbar,
 .player-dialog:fullscreen .player-toolbar {
   background-color: transparent;
