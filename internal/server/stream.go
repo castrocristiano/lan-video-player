@@ -86,6 +86,7 @@ func (s *Server) streamTranscodedMP4(w http.ResponseWriter, r *http.Request, tar
 	args := []string{
 		"-hide_banner",
 		"-loglevel", "error",
+		"-fflags", "+discardcorrupt",
 	}
 	if startSecStr != "" {
 		if sec, err := strconv.ParseFloat(startSecStr, 64); err == nil && sec > 0 {

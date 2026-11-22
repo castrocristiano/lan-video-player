@@ -71,6 +71,18 @@
       <button type="button" id="alertRetryBtn" class="btn btn-sm">Atualizar</button>
     </div>
 
+    <!-- Continue Watching Banner -->
+    <section id="continueWatchingBanner" class="continue-banner hidden" aria-label="Continuar assistindo">
+      <div class="continue-info">
+        <span class="continue-badge">Continuar assistindo</span>
+        <strong id="continueWatchingTitle" class="continue-title"></strong>
+        <span id="continueWatchingMeta" class="continue-meta"></span>
+      </div>
+      <button type="button" id="continueWatchingBtn" class="btn btn-primary btn-sm">
+        &#9654; Retomar
+      </button>
+    </section>
+
     <!-- Folders Section -->
     <section id="foldersSection" class="catalog-section hidden" aria-label="Subpastas">
       <h2 class="section-heading">Pastas <span id="foldersCount" class="badge-count">0</span></h2>
@@ -135,6 +147,11 @@
 
       <div class="player-stage" id="playerStage">
         <video id="videoElement" preload="metadata" playsinline></video>
+        <div id="playerLoadingSpinner" class="player-spinner hidden" role="status" aria-live="polite">
+          <div class="spinner-ring" aria-hidden="true"></div>
+          <span class="sr-only">Carregando vídeo...</span>
+        </div>
+        <div id="subtitleOverlay" class="subtitle-overlay hidden" aria-live="off"></div>
 
         <!-- Autoplay Next Countdown Overlay (FR-013) -->
         <div id="autoplayOverlay" class="autoplay-overlay hidden">
@@ -212,6 +229,16 @@
             <select id="subtitleSelect" aria-label="Selecionar legenda local">
               <option value="-1">Desativadas</option>
             </select>
+            <div class="sub-sync-group" id="subSyncGroup">
+              <button type="button" id="subSyncMinusBtn" class="btn btn-secondary btn-sm" title="Adiantar legenda (-0.5s)">-0.5s</button>
+              <span id="subSyncLabel" class="seek-time-label" title="Deslocamento de sincronização da legenda">0.0s</span>
+              <button type="button" id="subSyncPlusBtn" class="btn btn-secondary btn-sm" title="Atrasar legenda (+0.5s)">+0.5s</button>
+            </div>
+            <div class="sub-size-group" id="subSizeGroup">
+              <button type="button" id="subSizeMinusBtn" class="btn btn-secondary btn-sm" title="Diminuir tamanho da legenda" aria-label="Diminuir tamanho da legenda">A-</button>
+              <span id="subSizeLabel" class="seek-time-label" title="Tamanho da fonte da legenda">100%</span>
+              <button type="button" id="subSizePlusBtn" class="btn btn-secondary btn-sm" title="Aumentar tamanho da legenda" aria-label="Aumentar tamanho da legenda">A+</button>
+            </div>
           </div>
 
           <div class="toolbar-group">

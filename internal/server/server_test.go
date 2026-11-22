@@ -232,6 +232,17 @@ func TestHTTPSearchThumbnailsAndSubtitles(t *testing.T) {
 		t.Errorf("expected 200 WEBVTT, got %d", subRes.StatusCode)
 	}
 
+	// Test subtitle offset + delay query params
+	subShiftRes, err := http.Get(ts.URL + demoOut.Videos[0].Subtitles[0].SrcURL + "?offset=1&delay=3.5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	subShiftBody, _ := io.ReadAll(subShiftRes.Body)
+	subShiftRes.Body.Close()
+	if subShiftRes.StatusCode != http.StatusOK || !strings.Contains(string(subShiftBody), "00:00:04.000 --> 00:00:05.500") {
+		t.Errorf("expected shifted WEBVTT timestamps (+2.5s), got status=%d body=%q", subShiftRes.StatusCode, string(subShiftBody))
+	}
+
 	entries, _ := os.ReadDir(moviesDir)
 	if len(entries) != 3 {
 		t.Errorf("expected moviesDir untouched with 3 entries, got %d", len(entries))

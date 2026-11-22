@@ -590,6 +590,44 @@ select {
   text-overflow: ellipsis;
 }
 
+.continue-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.15rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--accent);
+}
+
+.continue-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.continue-badge {
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background-color: var(--accent);
+  color: #06131f;
+}
+
+.continue-title {
+  font-size: 0.92rem;
+}
+
+.continue-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 /* Empty State */
 .empty-state {
   display: flex;
@@ -739,6 +777,76 @@ select {
   outline: none;
 }
 
+.player-spinner {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.spinner-ring {
+  width: 52px;
+  height: 52px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: lvp-spin 0.8s linear infinite;
+}
+
+@keyframes lvp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.subtitle-overlay {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 24px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 0.25s ease;
+}
+
+.subtitle-line {
+  display: inline-block;
+  max-width: 88%;
+  padding: 5px 14px;
+  margin-top: 4px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffffff;
+  font-size: calc(clamp(16px, 2.1vw, 26px) * var(--lvp-subtitle-scale, 1));
+  line-height: 1.38;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  white-space: pre-line;
+}
+
+.sub-sync-group,
+.sub-size-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.25rem;
+}
+
+.sub-sync-group .seek-time-label,
+.sub-size-group .seek-time-label {
+  min-width: 42px;
+  font-size: 0.8rem;
+}
+
 .autoplay-overlay {
   position: absolute;
   inset: 0;
@@ -845,39 +953,51 @@ select {
   color: var(--text-primary) !important;
 }
 
-.player-dialog:fullscreen {
-  width: 100vw;
-  height: 100vh;
-  max-width: none;
-  max-height: none;
-  border: none;
-  border-radius: 0;
+.modal-overlay:fullscreen,
+.modal-overlay.is-fullscreen {
+  padding: 0;
   background-color: #000;
-  position: relative;
 }
 
-.player-dialog:fullscreen .player-stage {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  aspect-ratio: auto;
+.player-dialog:fullscreen,
+.player-dialog.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: #000 !important;
+  z-index: 1000 !important;
 }
 
-.player-dialog:fullscreen .player-stage video {
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  object-fit: contain;
+.player-dialog:fullscreen .player-stage,
+.player-dialog.is-fullscreen .player-stage {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  aspect-ratio: auto !important;
 }
 
-.player-dialog:fullscreen .player-header {
-  position: absolute;
+.player-dialog:fullscreen .player-stage video,
+.player-dialog.is-fullscreen .player-stage video {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+.player-dialog:fullscreen .player-header,
+.player-dialog.is-fullscreen .player-header {
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: 1002;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 100%);
   border-bottom: none;
   padding-bottom: 1.5rem;
@@ -886,12 +1006,13 @@ select {
   transition: opacity 0.25s ease;
 }
 
-.player-dialog:fullscreen .resume-banner {
-  position: absolute;
+.player-dialog:fullscreen .resume-banner,
+.player-dialog.is-fullscreen .resume-banner {
+  position: fixed;
   top: 64px;
   left: 1.15rem;
   right: 1.15rem;
-  z-index: 20;
+  z-index: 1002;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(56, 189, 248, 0.35);
   background-color: rgba(11, 14, 20, 0.88);
@@ -900,12 +1021,13 @@ select {
   transition: opacity 0.25s ease;
 }
 
-.player-dialog:fullscreen .player-bottom-controls {
-  position: absolute;
+.player-dialog:fullscreen .player-bottom-controls,
+.player-dialog.is-fullscreen .player-bottom-controls {
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: 1002;
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.68) 65%, rgba(0, 0, 0, 0) 100%);
   padding-top: 2rem;
   opacity: 0;
@@ -913,22 +1035,42 @@ select {
   transition: opacity 0.25s ease;
 }
 
+.player-dialog:fullscreen .subtitle-overlay,
+.player-dialog.is-fullscreen .subtitle-overlay {
+  position: fixed;
+  bottom: 112px;
+  z-index: 1003;
+}
+
+.player-dialog:fullscreen.fs-idle .subtitle-overlay,
+.player-dialog.is-fullscreen.fs-idle .subtitle-overlay {
+  bottom: 36px;
+}
+
 .player-dialog:fullscreen .player-seekbar,
-.player-dialog:fullscreen .player-toolbar {
+.player-dialog.is-fullscreen .player-seekbar,
+.player-dialog:fullscreen .player-toolbar,
+.player-dialog.is-fullscreen .player-toolbar {
   background-color: transparent;
   border-top: none;
 }
 
 .player-dialog:fullscreen.fs-controls-visible .player-header,
+.player-dialog.is-fullscreen.fs-controls-visible .player-header,
 .player-dialog:fullscreen.fs-controls-visible .resume-banner,
+.player-dialog.is-fullscreen.fs-controls-visible .resume-banner,
 .player-dialog:fullscreen.fs-controls-visible .player-bottom-controls,
+.player-dialog.is-fullscreen.fs-controls-visible .player-bottom-controls,
 .player-dialog:fullscreen .player-header:hover,
-.player-dialog:fullscreen .player-bottom-controls:hover {
+.player-dialog.is-fullscreen .player-header:hover,
+.player-dialog:fullscreen .player-bottom-controls:hover,
+.player-dialog.is-fullscreen .player-bottom-controls:hover {
   opacity: 1;
   pointer-events: auto;
 }
 
-.player-dialog:fullscreen.fs-idle {
+.player-dialog:fullscreen.fs-idle,
+.player-dialog.is-fullscreen.fs-idle {
   cursor: none;
 }
 

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/cristiano/lan-video-player/internal/catalog"
@@ -260,6 +262,21 @@ func (s *Server) handleSubtitles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	q := r.URL.Query()
+	var offsetSec, delaySec float64
+	if rawOffset := q.Get("offset"); rawOffset != "" {
+		if parsed, pErr := strconv.ParseFloat(rawOffset, 64); pErr == nil && parsed > 0 {
+			offsetSec = parsed
+		}
+	}
+	if rawDelay := q.Get("delay"); rawDelay != "" {
+		if parsed, pErr := strconv.ParseFloat(rawDelay, 64); pErr == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
+			delaySec = parsed
+		}
+	}
+	if totalShift := delaySec - offsetSec; math.Abs(totalShift) >= 0.001 {
+		vttData = catalog.ShiftWebVTTTimestamps(vttData, totalShift)
+	}
 	w.Header().Set(headerContentType, "text/vtt; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
